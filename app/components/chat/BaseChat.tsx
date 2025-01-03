@@ -32,6 +32,7 @@ import StarterTemplates from './StarterTemplates';
 import type { ActionAlert } from '~/types/actions';
 import ChatAlert from './ChatAlert';
 import { LLMManager } from '~/lib/modules/llm/manager';
+import { TokenDisplay } from './TokenDisplay';
 
 const TEXTAREA_MIN_HEIGHT = 76;
 
@@ -453,6 +454,11 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       'relative shadow-xs border border-bolt-elements-borderColor backdrop-blur rounded-lg',
                     )}
                   >
+                    {messages && messages.length > 0 && (
+                      <div className="absolute top-3 right-4 z-10">
+                        <TokenDisplay annotations={messages[messages.length - 1].annotations} />
+                      </div>
+                    )}
                     <textarea
                       ref={textareaRef}
                       className={classNames(
