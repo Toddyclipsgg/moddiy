@@ -454,11 +454,14 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       'relative shadow-xs border border-bolt-elements-borderColor backdrop-blur rounded-lg',
                     )}
                   >
-                    {messages && messages.length > 0 && (
-                      <div className="absolute top-3 right-4 z-10">
-                        <TokenDisplay annotations={messages[messages.length - 1].annotations} />
-                      </div>
-                    )}
+                    <div className="absolute top-3 right-4 z-10">
+                      <TokenDisplay
+                        annotations={
+                          messages && messages.length > 0 ? messages[messages.length - 1].annotations : undefined
+                        }
+                        inputText={input}
+                      />
+                    </div>
                     <textarea
                       ref={textareaRef}
                       className={classNames(
@@ -568,7 +571,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                             <div className="i-bolt:stars text-xl"></div>
                           )}
                         </IconButton>
-
                         <SpeechRecognitionButton
                           isListening={isListening}
                           onStart={startListening}
@@ -591,13 +593,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                           {isModelSettingsCollapsed ? <span className="text-xs">{model}</span> : <span />}
                         </IconButton>
                       </div>
-                      {input.length > 3 ? (
-                        <div className="text-xs text-bolt-elements-textTertiary">
-                          Use <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Shift</kbd>{' '}
-                          + <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Return</kbd>{' '}
-                          a new line
-                        </div>
-                      ) : null}
                     </div>
                   </div>
                 </div>
