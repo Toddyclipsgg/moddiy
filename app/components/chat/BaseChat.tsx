@@ -454,14 +454,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       'relative shadow-xs border border-bolt-elements-borderColor backdrop-blur rounded-lg',
                     )}
                   >
-                    <div className="absolute top-3 right-4 z-10">
-                      <TokenDisplay
-                        annotations={
-                          messages && messages.length > 0 ? messages[messages.length - 1].annotations : undefined
-                        }
-                        inputText={input}
-                      />
-                    </div>
+                    <div className="absolute top-3 right-4 z-10"></div>
                     <textarea
                       ref={textareaRef}
                       className={classNames(
@@ -593,6 +586,12 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                           {isModelSettingsCollapsed ? <span className="text-xs">{model}</span> : <span />}
                         </IconButton>
                       </div>
+                      <TokenDisplay
+                        annotations={
+                          messages && messages.length > 0 ? messages[messages.length - 1].annotations : undefined
+                        }
+                        inputText={input}
+                      />
                     </div>
                   </div>
                 </div>
