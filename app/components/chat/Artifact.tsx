@@ -1,6 +1,6 @@
 import { useStore } from '@nanostores/react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { computed } from 'nanostores';
+import { computed, map } from 'nanostores';
 import { memo, useEffect, useRef, useState } from 'react';
 import { createHighlighter, type BundledLanguage, type BundledTheme, type HighlighterGeneric } from 'shiki';
 import type { ActionState } from '~/lib/runtime/action-runner';
@@ -34,8 +34,8 @@ export const Artifact = memo(({ messageId }: ArtifactProps) => {
   const artifact = artifacts[messageId];
 
   const actions = useStore(
-    computed(artifact.runner.actions, (actions) => {
-      return Object.values(actions);
+    computed([artifact?.runner?.actions ?? map({})], (actions) => {
+      return Object.values(actions[0] || {});
     }),
   );
 
@@ -49,7 +49,7 @@ export const Artifact = memo(({ messageId }: ArtifactProps) => {
       setShowActions(true);
     }
 
-    if (actions.length !== 0 && artifact.type === 'bundled') {
+    if (actions.length !== 0 && artifact?.type === 'bundled') {
       const finished = !actions.find((action) => action.status !== 'complete');
 
       if (allActionFinished !== finished) {
@@ -68,7 +68,7 @@ export const Artifact = memo(({ messageId }: ArtifactProps) => {
             workbenchStore.showWorkbench.set(!showWorkbench);
           }}
         >
-          {artifact.type == 'bundled' && (
+          {artifact?.type == 'bundled' && (
             <>
               <div className="p-4">
                 {allActionFinished ? (
@@ -87,7 +87,7 @@ export const Artifact = memo(({ messageId }: ArtifactProps) => {
         </button>
         <div className="bg-bolt-elements-artifacts-borderColor w-[1px]" />
         <AnimatePresence>
-          {actions.length && artifact.type !== 'bundled' && (
+          {actions.length && artifact?.type !== 'bundled' && (
             <motion.button
               initial={{ width: 0 }}
               animate={{ width: 'auto' }}
@@ -104,7 +104,7 @@ export const Artifact = memo(({ messageId }: ArtifactProps) => {
         </AnimatePresence>
       </div>
       <AnimatePresence>
-        {artifact.type !== 'bundled' && showActions && actions.length > 0 && (
+        {artifact?.type !== 'bundled' && showActions && actions.length > 0 && (
           <motion.div
             className="actions"
             initial={{ height: 0 }}
