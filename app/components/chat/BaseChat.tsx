@@ -32,7 +32,6 @@ import StarterTemplates from './StarterTemplates';
 import type { ActionAlert } from '~/types/actions';
 import ChatAlert from './ChatAlert';
 import { LLMManager } from '~/lib/modules/llm/manager';
-import { TokenDisplay } from './TokenDisplay';
 
 const TEXTAREA_MIN_HEIGHT = 76;
 
@@ -104,7 +103,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
     const [apiKeys, setApiKeys] = useState<Record<string, string>>(getApiKeysFromCookies());
     const [modelList, setModelList] = useState(MODEL_LIST);
-    const [isModelSettingsCollapsed, setIsModelSettingsCollapsed] = useState(true);
+    const [isModelSettingsCollapsed, setIsModelSettingsCollapsed] = useState(false);
     const [isListening, setIsListening] = useState(false);
     const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
     const [transcript, setTranscript] = useState('');
@@ -454,7 +453,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       'relative shadow-xs border border-bolt-elements-borderColor backdrop-blur rounded-lg',
                     )}
                   >
-                    <div className="absolute top-3 right-4 z-10"></div>
                     <textarea
                       ref={textareaRef}
                       className={classNames(
@@ -564,6 +562,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                             <div className="i-bolt:stars text-xl"></div>
                           )}
                         </IconButton>
+
                         <SpeechRecognitionButton
                           isListening={isListening}
                           onStart={startListening}
@@ -586,12 +585,13 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                           {isModelSettingsCollapsed ? <span className="text-xs">{model}</span> : <span />}
                         </IconButton>
                       </div>
-                      <TokenDisplay
-                        annotations={
-                          messages && messages.length > 0 ? messages[messages.length - 1].annotations : undefined
-                        }
-                        inputText={input}
-                      />
+                      {input.length > 3 ? (
+                        <div className="text-xs text-bolt-elements-textTertiary">
+                          Use <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Shift</kbd>{' '}
+                          + <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Return</kbd>{' '}
+                          a new line
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>

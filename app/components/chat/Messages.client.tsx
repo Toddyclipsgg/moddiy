@@ -73,7 +73,7 @@ export const Messages = React.forwardRef<HTMLDivElement, MessagesProps>((props: 
                   {isUserMessage ? (
                     <UserMessage content={content} />
                   ) : (
-                    <AssistantMessage content={message.content} _annotations={message.annotations} />
+                    <AssistantMessage content={content} annotations={message.annotations} />
                   )}
                 </div>
                 {!isUserMessage && (

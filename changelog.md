@@ -6,7 +6,8 @@
 
 ### 🐛 Bug Fixes
 
-- hotfix auto select starter template works without github token #release ([#959](https://github.com/stackblitz-labs/bolt.diy/pull/959)) by @thecodacus
+* hotfix auto select starter template works without github token #release ([#959](https://github.com/stackblitz-labs/bolt.diy/pull/959)) by @thecodacus
+
 
 ## 📈 Stats
 
