@@ -1,10 +1,9 @@
 import type { WebContainer } from '@webcontainer/api';
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useState, useRef, type MutableRefObject } from 'react';
 import { webcontainer as webcontainerPromise } from '~/lib/webcontainer';
 import git, { type GitAuth, type PromiseFsClient } from 'isomorphic-git';
 import http from 'isomorphic-git/http/web';
 import Cookies from 'js-cookie';
-import { toast } from 'react-toastify';
 
 const lookupSavedPassword = (url: string) => {
   const domain = url.split('/')[2];
@@ -28,11 +27,33 @@ const saveGitAuth = (url: string, auth: GitAuth) => {
   Cookies.set(`git:${domain}`, JSON.stringify(auth));
 };
 
+interface GitCloneResult {
+  workdir: string;
+  data: Record<string, { data: any; encoding?: string; size?: number }>;
+}
+
+interface GitCloneCache {
+  [url: string]: {
+    timestamp: number;
+    result: GitCloneResult;
+  };
+}
+
+const MAX_CACHE_SIZE = 100 * 1024 * 1024; // 100MB
+const CACHE_DURATION = 1000 * 60 * 60; // 1 hora
+
 export function useGit() {
   const [ready, setReady] = useState(false);
   const [webcontainer, setWebcontainer] = useState<WebContainer>();
   const [fs, setFs] = useState<PromiseFsClient>();
-  const fileData = useRef<Record<string, { data: any; encoding?: string }>>({});
+  const fileData = useRef<Record<string, { data: any; encoding?: string; size?: number }>>({});
+  const cloneCache = useRef<GitCloneCache>({});
+  const [cloneProgress, setCloneProgress] = useState<{
+    phase: 'init' | 'clone' | 'process' | 'complete';
+    progress: number;
+    detail: string;
+  } | null>(null);
+
   useEffect(() => {
     webcontainerPromise.then((container) => {
       fileData.current = {};
@@ -42,65 +63,162 @@ export function useGit() {
     });
   }, []);
 
+  const clearOldCache = useCallback(() => {
+    const now = Date.now();
+    let totalSize = 0;
+
+    const entries = Object.entries(cloneCache.current).sort(([, a], [, b]) => b.timestamp - a.timestamp);
+
+    cloneCache.current = entries.reduce((acc, [url, cache]) => {
+      if (now - cache.timestamp > CACHE_DURATION) {
+        return acc;
+      }
+
+      const size = Object.values(cache.result.data).reduce((sum, file) => sum + (file.size || 0), 0);
+
+      if (totalSize + size <= MAX_CACHE_SIZE) {
+        totalSize += size;
+        acc[url] = cache;
+      }
+
+      return acc;
+    }, {} as GitCloneCache);
+  }, []);
+
   const gitClone = useCallback(
-    async (url: string) => {
+    async (url: string): Promise<GitCloneResult> => {
       if (!webcontainer || !fs || !ready) {
-        throw 'Webcontainer not initialized';
+        throw new Error('Webcontainer não inicializado');
+      }
+
+      setCloneProgress({ phase: 'init', progress: 0, detail: 'Iniciando clone...' });
+      clearOldCache();
+
+      const cached = cloneCache.current[url];
+
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        setCloneProgress({ phase: 'complete', progress: 100, detail: 'Usando versão em cache' });
+        return cached.result;
       }
 
       fileData.current = {};
-      await git.clone({
-        fs,
-        http,
-        dir: webcontainer.workdir,
-        url,
-        depth: 1,
-        singleBranch: true,
-        corsProxy: 'https://cors.isomorphic-git.org',
-        onAuth: (url) => {
-          // let domain=url.split("/")[2]
 
-          let auth = lookupSavedPassword(url);
+      try {
+        setCloneProgress({ phase: 'clone', progress: 20, detail: 'Clonando repositório...' });
 
-          if (auth) {
-            return auth;
+        await git.clone({
+          fs,
+          http,
+          dir: webcontainer.workdir,
+          url,
+          depth: 2,
+          singleBranch: false,
+          corsProxy: 'https://cors.isomorphic-git.org',
+          onProgress: (event) => {
+            if (event.phase === 'Counting objects') {
+              setCloneProgress({
+                phase: 'clone',
+                progress: 20 + (event.loaded / (event.total || 1)) * 30,
+                detail: `Contando objetos: ${event.loaded}/${event.total}`,
+              });
+            } else if (event.phase === 'Receiving objects') {
+              setCloneProgress({
+                phase: 'clone',
+                progress: 50 + (event.loaded / (event.total || 1)) * 30,
+                detail: `Recebendo objetos: ${event.loaded}/${event.total}`,
+              });
+            }
+          },
+          onAuth: async (url) => {
+            let auth = lookupSavedPassword(url);
+
+            if (auth) {
+              return auth;
+            }
+
+            if (confirm('This repo is password protected. Ready to enter a username & password?')) {
+              auth = {
+                username: prompt('Enter username'),
+                password: prompt('Enter password'),
+              };
+              return auth;
+            } else {
+              return { cancel: true };
+            }
+          },
+          onAuthSuccess: (url, auth) => {
+            saveGitAuth(url, auth);
+          },
+        });
+
+        setCloneProgress({ phase: 'process', progress: 80, detail: 'Processando arquivos...' });
+
+        try {
+          const gitModules = await fs.promises.readFile(`${webcontainer.workdir}/.gitmodules`, 'utf8');
+
+          if (gitModules) {
+            const submodules = gitModules.match(/path = (.+)/g)?.map((line: string) => line.split(' = ')[1]);
+
+            if (submodules) {
+              for (const submodule of submodules) {
+                try {
+                  await git.clone({
+                    fs,
+                    http,
+                    dir: `${webcontainer.workdir}/${submodule}`,
+                    url: url.replace(/\.git$/, '') + '/' + submodule + '.git',
+                    depth: 1,
+                  });
+                } catch {
+                  console.warn(`Falha ao clonar submodule ${submodule}:`);
+                }
+              }
+            }
           }
+        } catch {
+          // Ignora se não houver .gitmodules
+        }
 
-          if (confirm('This repo is password protected. Ready to enter a username & password?')) {
-            auth = {
-              username: prompt('Enter username'),
-              password: prompt('Enter password'),
+        const result = {
+          workdir: webcontainer.workdir,
+          data: Object.entries(fileData.current).reduce((acc, [path, data]) => {
+            const stats = fs.promises.stat(path);
+            return {
+              ...acc,
+              [path]: {
+                ...data,
+                size: stats ? (stats as any).size : data.data?.length || 0,
+              },
             };
-            return auth;
-          } else {
-            return { cancel: true };
-          }
-        },
-        onAuthFailure: (url, _auth) => {
-          toast.error(`Error Authenticating with ${url.split('/')[2]}`);
-        },
-        onAuthSuccess: (url, auth) => {
-          saveGitAuth(url, auth);
-        },
-      });
+          }, {}),
+        };
 
-      const data: Record<string, { data: any; encoding?: string }> = {};
+        cloneCache.current[url] = {
+          timestamp: Date.now(),
+          result,
+        };
 
-      for (const [key, value] of Object.entries(fileData.current)) {
-        data[key] = value;
+        setCloneProgress({ phase: 'complete', progress: 100, detail: 'Clone concluído' });
+
+        return result;
+      } catch {
+        console.error('Erro durante o clone:');
+        throw new Error('Erro ao clonar repositório. Por favor, tente novamente.');
       }
-
-      return { workdir: webcontainer.workdir, data };
     },
-    [webcontainer],
+    [webcontainer, fs, ready, clearOldCache],
   );
 
-  return { ready, gitClone };
+  return {
+    ready,
+    gitClone,
+    cloneProgress,
+  };
 }
 
 const getFs = (
   webcontainer: WebContainer,
-  record: MutableRefObject<Record<string, { data: any; encoding?: string }>>,
+  record: MutableRefObject<Record<string, { data: any; encoding?: string; size?: number }>>,
 ) => ({
   promises: {
     readFile: async (path: string, options: any) => {
@@ -174,9 +292,7 @@ const getFs = (
           uid: 1000,
           gid: 1000,
         };
-      } catch (error: any) {
-        console.log(error?.message);
-
+      } catch {
         const err = new Error(`ENOENT: no such file or directory, stat '${path}'`) as NodeJS.ErrnoException;
         err.code = 'ENOENT';
         err.errno = -2;

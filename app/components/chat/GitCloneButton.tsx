@@ -3,6 +3,8 @@ import { useGit } from '~/lib/hooks/useGit';
 import type { Message } from 'ai';
 import { detectProjectCommands, createCommandsMessage } from '~/utils/projectCommands';
 import { generateId } from '~/utils/fileUtils';
+import { useState } from 'react';
+import { GitCloneModal } from '~/components/git/GitCloneModal';
 
 const IGNORE_PATTERNS = [
   'node_modules/**',
@@ -36,42 +38,40 @@ interface GitCloneButtonProps {
 }
 
 export default function GitCloneButton({ importChat }: GitCloneButtonProps) {
-  const { ready, gitClone } = useGit();
-  const onClick = async (_e: any) => {
-    if (!ready) {
-      return;
-    }
+  const { ready, gitClone, cloneProgress } = useGit();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const repoUrl = prompt('Enter the Git url');
-
-    if (repoUrl) {
+  const handleClone = async (repoUrl: string) => {
+    try {
       const { workdir, data } = await gitClone(repoUrl);
 
       if (importChat) {
         const filePaths = Object.keys(data).filter((filePath) => !ig.ignores(filePath));
-        console.log(filePaths);
-
         const textDecoder = new TextDecoder('utf-8');
 
-        // Convert files to common format for command detection
+        // Convert files for command detection
         const fileContents = filePaths
           .map((filePath) => {
-            const { data: content, encoding } = data[filePath];
-            return {
-              path: filePath,
-              content: encoding === 'utf8' ? content : content instanceof Uint8Array ? textDecoder.decode(content) : '',
-            };
+            try {
+              const { data: content, encoding } = data[filePath];
+              return {
+                path: filePath,
+                content:
+                  encoding === 'utf8' ? content : content instanceof Uint8Array ? textDecoder.decode(content) : '',
+              };
+            } catch (err) {
+              console.error(`Error processing file ${filePath}:`, err);
+              return null;
+            }
           })
-          .filter((f) => f.content);
+          .filter((f): f is NonNullable<typeof f> => f !== null);
 
-        // Detect and create commands message
         const commands = await detectProjectCommands(fileContents);
         const commandsMessage = createCommandsMessage(commands);
 
-        // Create files message
         const filesMessage: Message = {
           role: 'assistant',
-          content: `Cloning the repo ${repoUrl} into ${workdir}
+          content: `Repository ${repoUrl} successfully cloned to ${workdir}
 <boltArtifact id="imported-files" title="Git Cloned Files" type="bundled">
 ${fileContents
   .map(
@@ -92,19 +92,39 @@ ${file.content}
           messages.push(commandsMessage);
         }
 
-        await importChat(`Git Project:${repoUrl.split('/').slice(-1)[0]}`, messages);
+        await importChat(`Git Project: ${repoUrl.split('/').slice(-1)[0]}`, messages);
       }
+    } catch (error) {
+      console.error('Error during clone:', error);
+      throw error;
     }
   };
 
   return (
-    <button
-      onClick={onClick}
-      title="Clone a Git Repo"
-      className="px-4 py-2 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary hover:bg-bolt-elements-background-depth-3 transition-all flex items-center gap-2"
-    >
-      <span className="i-ph:git-branch" />
-      Clone a Git Repo
-    </button>
+    <>
+      <button
+        onClick={() => setIsModalOpen(true)}
+        disabled={!ready}
+        title={ready ? 'Clone a Git Repository' : 'Waiting for initialization...'}
+        className="px-4 py-2 rounded border border-[#424242] bg-[#2d2d2d] text-bolt-elements-textPrimary hover:bg-[#3d3d3d] transition-all flex items-center gap-2 disabled:opacity-50"
+      >
+        <span className="i-ph:git-branch" />
+        {cloneProgress ? (
+          <div className="flex items-center gap-2">
+            <div className="h-1 w-20 bg-[#424242] rounded overflow-hidden">
+              <div
+                className="h-full bg-bolt-elements-accent transition-all duration-300"
+                style={{ width: `${cloneProgress.progress}%` }}
+              />
+            </div>
+            <span className="text-sm">{cloneProgress.detail}</span>
+          </div>
+        ) : (
+          'Clone Git Repository'
+        )}
+      </button>
+
+      <GitCloneModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onConfirm={handleClone} />
+    </>
   );
 }
