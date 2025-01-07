@@ -6,6 +6,9 @@ import { themeStore } from './lib/stores/theme';
 import { stripIndents } from './utils/stripIndent';
 import { createHead } from 'remix-island';
 import { useEffect } from 'react';
+import { AuthProvider } from './providers/AuthProvider';
+import { toast } from 'react-toastify';
+import { supabase } from './lib/supabase';
 
 import reactToastifyStyles from 'react-toastify/dist/ReactToastify.css?url';
 import globalStyles from './styles/index.scss?url';
@@ -76,7 +79,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <Scripts />
     </>
   );
-}
+};
 
 import { logStore } from './lib/stores/logs';
 
@@ -92,9 +95,20 @@ export default function App() {
     });
   }, []);
 
+  useEffect(() => {
+    // Verificar se o usuário acabou de fazer login
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        toast.success('Logged in successfully!');
+      }
+    });
+  }, []);
+
   return (
-    <Layout>
-      <Outlet />
-    </Layout>
+    <AuthProvider>
+      <Layout>
+        <Outlet />
+      </Layout>
+    </AuthProvider>
   );
 }

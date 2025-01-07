@@ -44,23 +44,23 @@ interface DialogButtonProps {
   type: 'primary' | 'secondary' | 'danger';
   children: ReactNode;
   onClick?: (event: React.UIEvent) => void;
+  disabled?: boolean;
+  className?: string;
 }
 
-export const DialogButton = memo(({ type, children, onClick }: DialogButtonProps) => {
+export const DialogButton = memo(({ type, children, onClick, disabled, className }: DialogButtonProps) => {
   return (
     <button
       className={classNames(
         'inline-flex h-[35px] items-center justify-center rounded-lg px-4 text-sm leading-none focus:outline-none',
-        {
-          'bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text hover:bg-bolt-elements-button-primary-backgroundHover':
-            type === 'primary',
-          'bg-bolt-elements-button-secondary-background text-bolt-elements-button-secondary-text hover:bg-bolt-elements-button-secondary-backgroundHover':
-            type === 'secondary',
-          'bg-bolt-elements-button-danger-background text-bolt-elements-button-danger-text hover:bg-bolt-elements-button-danger-backgroundHover':
-            type === 'danger',
-        },
+        type === 'primary' ? 'bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text hover:bg-bolt-elements-button-primary-backgroundHover' : '',
+        type === 'secondary' ? 'bg-bolt-elements-button-secondary-background text-bolt-elements-button-secondary-text hover:bg-bolt-elements-button-secondary-backgroundHover' : '',
+        type === 'danger' ? 'bg-bolt-elements-button-danger-background text-bolt-elements-button-danger-text hover:bg-bolt-elements-button-danger-backgroundHover' : '',
+        disabled ? 'opacity-50 cursor-not-allowed hover:bg-none' : '',
+        className
       )}
       onClick={onClick}
+      disabled={disabled}
     >
       {children}
     </button>
