@@ -7,7 +7,7 @@ import { BaseChat } from '~/components/chat/BaseChat';
 import { Chat } from '~/components/chat/Chat.client';
 import { useGit } from '~/lib/hooks/useGit';
 import { useChatHistory } from '~/lib/persistence';
-import { createCommandsMessage, detectProjectCommands } from '~/utils/projectCommands';
+import { createCommandsMessage, detectProjectCommands, escapeBoltTags } from '~/utils/projectCommands';
 import { LoadingOverlay } from '~/components/ui/LoadingOverlay';
 import { toast } from 'react-toastify';
 
@@ -79,7 +79,7 @@ ${fileContents
   .map(
     (file) =>
       `<boltAction type="file" filePath="${file.path}">
-${file.content}
+${escapeBoltTags(file.content)}
 </boltAction>`,
   )
   .join('\n')}
