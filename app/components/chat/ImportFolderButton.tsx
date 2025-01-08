@@ -3,7 +3,8 @@ import type { Message } from 'ai';
 import { toast } from 'react-toastify';
 import { MAX_FILES, isBinaryFile, shouldIncludeFile } from '~/utils/fileUtils';
 import { createChatFromFolder } from '~/utils/folderImport';
-import { logStore } from '~/lib/stores/logs'; // Assuming logStore is imported from this location
+import { logStore } from '~/lib/stores/logs';
+import { IconButton } from '~/components/ui/IconButton';
 
 interface ImportFolderButtonProps {
   className?: string;
@@ -107,22 +108,23 @@ export const ImportFolderButton: React.FC<ImportFolderButtonProps> = ({ classNam
         type="file"
         id="folder-import"
         className="hidden"
+        // @ts-ignore
         webkitdirectory=""
         directory=""
+        multiple
         onChange={handleFileChange}
-        {...({} as any)}
       />
-      <button
+      <IconButton
         onClick={() => {
           const input = document.getElementById('folder-import');
           input?.click();
         }}
-        className={className}
+        className={isLoading ? 'opacity-50 cursor-not-allowed' : ''}
         disabled={isLoading}
+        title="Import Folder"
       >
-        <div className="i-ph:upload-simple" />
-        {isLoading ? 'Importing...' : 'Import Folder'}
-      </button>
+        <div className="i-ph:folder text-xl"></div>
+      </IconButton>
     </>
   );
 };

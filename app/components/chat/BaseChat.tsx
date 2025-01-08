@@ -21,6 +21,7 @@ import { ExportChatButton } from '~/components/chat/chatExportAndImport/ExportCh
 import { ImportButtons } from '~/components/chat/chatExportAndImport/ImportButtons';
 import { ExamplePrompts } from '~/components/chat/ExamplePrompts';
 import GitCloneButton from './GitCloneButton';
+import { ImportFolderButton } from '~/components/chat/ImportFolderButton';
 
 import FilePreview from './FilePreview';
 import { ModelSelector } from '~/components/chat/ModelSelector';
@@ -103,7 +104,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
     const [apiKeys, setApiKeys] = useState<Record<string, string>>(getApiKeysFromCookies());
     const [modelList, setModelList] = useState(MODEL_LIST);
-    const [isModelSettingsCollapsed, setIsModelSettingsCollapsed] = useState(false);
+    const [isModelSettingsCollapsed, setIsModelSettingsCollapsed] = useState(true);
     const [isListening, setIsListening] = useState(false);
     const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
     const [transcript, setTranscript] = useState('');
@@ -547,6 +548,30 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         <IconButton title="Upload file" className="transition-all" onClick={() => handleFileUpload()}>
                           <div className="i-ph:paperclip text-xl"></div>
                         </IconButton>
+                        {!chatStarted && (
+                          <>
+                            <IconButton
+                              title="Import Chat"
+                              className="transition-all"
+                              onClick={() => {
+                                const input = document.getElementById('chat-import');
+                                input?.click();
+                              }}
+                            >
+                              <div className="relative">
+                                <div className="i-ph:chat-circle text-xl"></div>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className="i-ph:arrow-up text-[0.8em]"></div>
+                                </div>
+                              </div>
+                            </IconButton>
+                            <ImportFolderButton
+                              importChat={importChat}
+                              className="transition-all"
+                            />
+                            <GitCloneButton importChat={importChat} />
+                          </>
+                        )}
                         <IconButton
                           title="Enhance prompt"
                           disabled={input.length === 0 || enhancingPrompt}
@@ -599,9 +624,8 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
             </div>
             <div className="flex flex-col justify-center gap-5">
               {!chatStarted && (
-                <div className="flex justify-center gap-2">
+                <div className="hidden">
                   {ImportButtons(importChat)}
-                  <GitCloneButton importChat={importChat} />
                 </div>
               )}
               {!chatStarted &&

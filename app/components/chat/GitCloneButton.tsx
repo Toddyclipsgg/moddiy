@@ -6,6 +6,8 @@ import { generateId } from '~/utils/fileUtils';
 import { useState } from 'react';
 import { toast } from 'react-toastify';
 import { LoadingOverlay } from '~/components/ui/LoadingOverlay';
+import { IconButton } from '~/components/ui/IconButton';
+import { createPortal } from 'react-dom';
 
 const IGNORE_PATTERNS = [
   'node_modules/**',
@@ -111,15 +113,18 @@ ${file.content}
 
   return (
     <>
-      <button
+      {loading && createPortal(
+        <LoadingOverlay message="Please wait while we clone the repository..." />,
+        document.body
+      )}
+      <IconButton
         onClick={onClick}
-        title="Clone a Git Repo"
-        className="px-4 py-2 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary hover:bg-bolt-elements-background-depth-3 transition-all flex items-center gap-2"
+        disabled={!ready || loading}
+        className={!ready || loading ? 'opacity-50 cursor-not-allowed' : ''}
+        title="Clone Git Repository"
       >
-        <span className="i-ph:git-branch" />
-        Clone a Git Repo
-      </button>
-      {loading && <LoadingOverlay message="Please wait while we clone the repository..." />}
+        <div className="i-ph:git-branch text-xl"></div>
+      </IconButton>
     </>
   );
 }
