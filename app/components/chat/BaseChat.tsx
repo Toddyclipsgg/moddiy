@@ -341,10 +341,12 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                   </div>
                   <div className={classNames('flex flex-col h-full', showChat ? 'opacity-100' : 'opacity-0')}>
                     <TokenUsageBar />
-                    <div className={classNames('flex flex-col flex-1 relative', showChat ? 'opacity-100' : 'opacity-0')}>
+                    <div
+                      className={classNames('flex flex-col flex-1 relative', showChat ? 'opacity-100' : 'opacity-0')}
+                    >
                       <div
                         className={classNames(
-                          'bg-bolt-elements-background-depth-2 p-3 rounded-lg border border-bolt-elements-borderColor relative w-full max-w-chat mx-auto z-prompt'
+                          'bg-bolt-elements-background-depth-2 p-3 rounded-lg border border-bolt-elements-borderColor relative w-full max-w-chat mx-auto z-prompt',
                         )}
                       >
                         <svg className={classNames(styles.PromptEffectContainer)}>
@@ -425,7 +427,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         </ClientOnly>
                         <div
                           className={classNames(
-                            'relative shadow-xs border border-bolt-elements-borderColor backdrop-blur rounded-lg'
+                            'relative shadow-xs border border-bolt-elements-borderColor backdrop-blur rounded-lg',
                           )}
                         >
                           <div className="flex flex-col flex-1 overflow-hidden">
@@ -592,7 +594,9 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                             {input.length > 3 ? (
                               <div className="text-xs text-bolt-elements-textTertiary">
                                 Use{' '}
-                                <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Shift</kbd>{' '}
+                                <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">
+                                  Shift
+                                </kbd>{' '}
                                 +{' '}
                                 <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">
                                   Return
@@ -630,5 +634,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         </div>
       </Tooltip.Provider>
     );
-  }
+  },
 );
+
+BaseChat.displayName = 'BaseChat';
