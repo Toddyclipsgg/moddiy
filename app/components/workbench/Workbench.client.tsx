@@ -151,26 +151,30 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                       onClick={() => {
                         workbenchStore.downloadZip();
                       }}
+                      title="Download Code"
                     >
-                      <div className="i-ph:code" />
-                      Download Code
+                      <div className="i-ph:code w-5 h-5" />
                     </PanelHeaderButton>
-                    <PanelHeaderButton className="mr-1 text-sm" onClick={handleSyncFiles} disabled={isSyncing}>
-                      {isSyncing ? <div className="i-ph:spinner" /> : <div className="i-ph:cloud-arrow-down" />}
-                      {isSyncing ? 'Syncing...' : 'Sync Files'}
+                    <PanelHeaderButton 
+                      className="mr-1 text-sm" 
+                      onClick={handleSyncFiles} 
+                      disabled={isSyncing}
+                      title={isSyncing ? "Syncing..." : "Sync Files"}
+                    >
+                      {isSyncing ? <div className="i-ph:spinner w-5 h-5" /> : <div className="i-ph:cloud-arrow-down w-5 h-5" />}
                     </PanelHeaderButton>
                     <PanelHeaderButton
                       className="mr-1 text-sm"
                       onClick={() => {
                         workbenchStore.toggleTerminal(!workbenchStore.showTerminal.get());
                       }}
+                      title="Toggle Terminal"
                     >
-                      <div className="i-ph:terminal" />
-                      Toggle Terminal
+                      <div className="i-ph:terminal w-5 h-5" />
                     </PanelHeaderButton>
                     <PanelHeaderButton
                       className="mr-1 text-sm"
-                      onClick={() => {
+                      onClick={async () => {
                         const repoName = prompt(
                           'Please enter a name for your new GitHub repository:',
                           'bolt-generated-project',
@@ -198,9 +202,9 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                           workbenchStore.pushToGitHub(repoName, githubUsername, githubToken);
                         }
                       }}
+                      title="Push to GitHub"
                     >
-                      <div className="i-ph:github-logo" />
-                      Push to GitHub
+                      <div className="i-ph:github-logo w-5 h-5" />
                     </PanelHeaderButton>
                   </div>
                 )}
@@ -211,6 +215,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                   onClick={() => {
                     workbenchStore.showWorkbench.set(false);
                   }}
+                  title="Close Workbench"
                 />
               </div>
               <div className="relative flex-1 overflow-hidden">
@@ -245,6 +250,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     )
   );
 });
+
 interface ViewProps extends HTMLMotionProps<'div'> {
   children: JSX.Element;
 }
