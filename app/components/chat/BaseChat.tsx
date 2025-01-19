@@ -593,9 +593,8 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
             </div>
             <div className="flex flex-col justify-center gap-5">
               {!chatStarted && (
-                <div className="flex justify-center gap-2">
+                <div className="hidden">
                   {ImportButtons(importChat)}
-                  <GitCloneButton importChat={importChat} />
                 </div>
               )}
               {!chatStarted &&
