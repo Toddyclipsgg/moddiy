@@ -5,15 +5,23 @@ import { classNames } from '~/utils/classNames';
 import { HeaderActionButtons } from './HeaderActionButtons.client';
 import { ChatDescription } from '~/lib/persistence/ChatDescription.client';
 
-export function Header() {
+interface HeaderProps {
+  className?: string;
+}
+
+export function Header({ className }: HeaderProps) {
   const chat = useStore(chatStore);
 
   return (
     <header
-      className={classNames('flex items-center p-5 border-b h-[var(--header-height)]', {
-        'border-transparent': !chat.started,
-        'border-bolt-elements-borderColor': chat.started,
-      })}
+      className={classNames(
+        'flex items-center p-5 border-b h-[var(--header-height)]',
+        {
+          'border-transparent': !chat.started,
+          'border-bolt-elements-borderColor': chat.started,
+        },
+        className,
+      )}
     >
       <div className="flex items-center gap-2 z-logo text-bolt-elements-textPrimary cursor-pointer">
         <div className="i-ph:sidebar-simple-duotone text-xl" />

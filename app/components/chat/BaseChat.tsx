@@ -338,19 +338,9 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                     />
                   )}
                 </div>
-                <div
-                  className={classNames(
-                    'flex flex-col h-full',
-                    showChat ? 'opacity-100' : 'opacity-0',
-                  )}
-                >
+                <div className={classNames('flex flex-col h-full', showChat ? 'opacity-100' : 'opacity-0')}>
                   <TokenUsageBar tokensRemaining={150000} />
-                  <div
-                    className={classNames(
-                      'flex flex-col flex-1 relative',
-                      showChat ? 'opacity-100' : 'opacity-0',
-                    )}
-                  >
+                  <div className={classNames('flex flex-col flex-1 relative', showChat ? 'opacity-100' : 'opacity-0')}>
                     <div
                       className={classNames(
                         'bg-bolt-elements-background-depth-2 p-3 rounded-lg border border-bolt-elements-borderColor relative w-full max-w-chat mx-auto z-prompt',
@@ -385,7 +375,11 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                             <stop offset="100%" stopColor="white" stopOpacity="0%"></stop>
                           </linearGradient>
                         </defs>
-                        <rect className={classNames(styles.PromptEffectLine)} pathLength="100" strokeLinecap="round"></rect>
+                        <rect
+                          className={classNames(styles.PromptEffectLine)}
+                          pathLength="100"
+                          strokeLinecap="round"
+                        ></rect>
                         <rect className={classNames(styles.PromptShine)} x="48" y="24" width="70" height="1"></rect>
                       </svg>
                       <div>
@@ -532,7 +526,11 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         </ClientOnly>
                         <div className="flex justify-between items-center text-sm p-4 pt-2">
                           <div className="flex gap-1 items-center">
-                            <IconButton title="Upload file" className="transition-all" onClick={() => handleFileUpload()}>
+                            <IconButton
+                              title="Upload file"
+                              className="transition-all"
+                              onClick={() => handleFileUpload()}
+                            >
                               <div className="i-ph:paperclip text-xl"></div>
                             </IconButton>
                             <IconButton
@@ -557,7 +555,9 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                               onStop={stopListening}
                               disabled={isStreaming}
                             />
-                            {chatStarted && <ClientOnly>{() => <ExportChatButton exportChat={exportChat} />}</ClientOnly>}
+                            {chatStarted && (
+                              <ClientOnly>{() => <ExportChatButton exportChat={exportChat} />}</ClientOnly>
+                            )}
                             <IconButton
                               title="Model Settings"
                               className={classNames('transition-all flex items-center gap-1', {
@@ -575,8 +575,12 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                           </div>
                           {input.length > 3 ? (
                             <div className="text-xs text-bolt-elements-textTertiary">
-                              Use <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Shift</kbd>{' '}
-                              + <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Return</kbd>{' '}
+                              Use{' '}
+                              <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Shift</kbd>{' '}
+                              +{' '}
+                              <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">
+                                Return
+                              </kbd>{' '}
                               a new line
                             </div>
                           ) : null}
