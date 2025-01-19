@@ -339,7 +339,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                   )}
                 </div>
                 <div className={classNames('flex flex-col h-full', showChat ? 'opacity-100' : 'opacity-0')}>
-                  <TokenUsageBar tokensRemaining={150000} />
+                  <TokenUsageBar />
                   <div className={classNames('flex flex-col flex-1 relative', showChat ? 'opacity-100' : 'opacity-0')}>
                     <div
                       className={classNames(

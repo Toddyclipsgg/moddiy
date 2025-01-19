@@ -3,7 +3,7 @@
  * Preventing TS checks with files presented in the video for a better presentation.
  */
 import { useStore } from '@nanostores/react';
-import type { Message } from 'ai';
+import type { Message, JSONValue } from 'ai';
 import { useChat } from 'ai/react';
 import { useAnimate } from 'framer-motion';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
@@ -23,6 +23,7 @@ import type { ProviderInfo } from '~/types/model';
 import { useSearchParams } from '@remix-run/react';
 import { createSampler } from '~/utils/sampler';
 import { getTemplates, selectStarterTemplate } from '~/utils/selectStarterTemplate';
+import { useTokenUsageStore, type TokenUsage } from '~/lib/stores/tokenUsage';
 
 const toastAnimation = cssTransition({
   enter: 'animated fadeInRight',
@@ -154,12 +155,37 @@ export const ChatImpl = memo(
           );
         },
         onFinish: (message, response) => {
-          const usage = response.usage;
+          console.log('onFinish called with response:', response);
+          console.log('Message annotations:', message.annotations);
+          
+          const usageAnnotation = message.annotations?.find(
+            (annotation: JSONValue) => 
+              annotation && 
+              typeof annotation === 'object' && 
+              'type' in annotation && 
+              annotation.type === 'usage'
+          ) as { type: string; value: TokenUsage } | undefined;
 
-          if (usage) {
-            console.log('Token usage:', usage);
-
-            // You can now use the usage data as needed
+          if (usageAnnotation?.value) {
+            const usage = usageAnnotation.value;
+            console.log('Token usage details:', {
+              completionTokens: usage.completionTokens,
+              promptTokens: usage.promptTokens,
+              totalTokens: usage.totalTokens
+            });
+            
+            const tokenStore = useTokenUsageStore.getState();
+            console.log('Current store usage:', tokenStore.dailyUsage);
+            
+            tokenStore.updateUsage({
+              completionTokens: usage.completionTokens || 0,
+              promptTokens: usage.promptTokens || 0,
+              totalTokens: usage.totalTokens || 0
+            });
+            
+            console.log('Updated store usage:', tokenStore.dailyUsage);
+          } else {
+            console.log('No usage information in message annotations');
           }
 
           logger.debug('Finished streaming');
