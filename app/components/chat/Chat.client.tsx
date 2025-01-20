@@ -138,10 +138,6 @@ export const ChatImpl = memo(
 
     const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
 
-    const store = useTokenUsageStore();
-    const maxTokens = 10000;
-    const hasReachedTokenLimit = store.dailyUsage.totalTokens >= maxTokens;
-
     const { messages, isLoading, input, handleInputChange, setInput, stop, append, setMessages, reload, error } =
       useChat({
         api: '/api/chat',
@@ -197,7 +193,6 @@ export const ChatImpl = memo(
         initialMessages,
         initialInput: Cookies.get(PROMPT_COOKIE_KEY) || '',
       });
-
     useEffect(() => {
       const prompt = searchParams.get('prompt');
 
@@ -280,11 +275,6 @@ export const ChatImpl = memo(
     };
 
     const sendMessage = async (_event: React.UIEvent, messageInput?: string) => {
-      if (hasReachedTokenLimit) {
-        toast.error("You've reached your daily token limit. Subscribe to Pro for more usage.");
-        return;
-      }
-
       const _input = messageInput || input;
 
       if (_input.length === 0 || isLoading) {
@@ -571,7 +561,6 @@ export const ChatImpl = memo(
         setImageDataList={setImageDataList}
         actionAlert={actionAlert}
         clearAlert={() => workbenchStore.clearAlert()}
-        hasReachedTokenLimit={hasReachedTokenLimit}
       />
     );
   },
