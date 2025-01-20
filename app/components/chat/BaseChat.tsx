@@ -4,6 +4,9 @@
  */
 import type { Message } from 'ai';
 import React, { type RefCallback, useEffect, useState } from 'react';
+import { useStore } from '@nanostores/react';
+import { useTokenUsageStore } from '~/lib/stores/tokenUsage';
+import { MAX_DAILY_TOKENS } from './TokenUsageBar';
 import { ClientOnly } from 'remix-utils/client-only';
 import { Menu } from '~/components/sidebar/Menu.client';
 import { IconButton } from '~/components/ui/IconButton';
@@ -15,6 +18,7 @@ import { SendButton } from './SendButton.client';
 import { APIKeyManager, getApiKeysFromCookies } from './APIKeyManager';
 import Cookies from 'js-cookie';
 import * as Tooltip from '@radix-ui/react-tooltip';
+import { toast } from 'react-toastify';
 
 import styles from './BaseChat.module.scss';
 import { ExportChatButton } from '~/components/chat/chatExportAndImport/ExportChatButton';
@@ -27,7 +31,6 @@ import { ModelSelector } from '~/components/chat/ModelSelector';
 import { SpeechRecognitionButton } from '~/components/chat/SpeechRecognition';
 import type { ProviderInfo } from '~/types/model';
 import { ScreenshotStateManager } from './ScreenshotStateManager';
-import { toast } from 'react-toastify';
 import StarterTemplates from './StarterTemplates';
 import type { ActionAlert } from '~/types/actions';
 import ChatAlert from './ChatAlert';
@@ -65,7 +68,6 @@ interface BaseChatProps {
   setImageDataList?: (dataList: string[]) => void;
   actionAlert?: ActionAlert;
   clearAlert?: () => void;
-  hasReachedTokenLimit?: boolean;
 }
 
 export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
@@ -99,10 +101,26 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       messages,
       actionAlert,
       clearAlert,
-      hasReachedTokenLimit,
     },
     ref,
   ) => {
+    const tokenUsageStore = useTokenUsageStore();
+    const [isTokenLimitReached, setIsTokenLimitReached] = useState(false);
+
+    useEffect(() => {
+      const currentTotalTokens = tokenUsageStore.dailyUsage.totalTokens;
+      const isLimitReached = currentTotalTokens >= MAX_DAILY_TOKENS;
+      
+      setIsTokenLimitReached(isLimitReached);
+
+      if (isLimitReached) {
+        toast.warn('Daily token limit reached. Please upgrade to continue.', {
+          position: 'top-center',
+          autoClose: 5000,
+        });
+      }
+    }, [tokenUsageStore.dailyUsage.totalTokens]);
+
     const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
     const [apiKeys, setApiKeys] = useState<Record<string, string>>(getApiKeysFromCookies());
     const [modelList, setModelList] = useState<ModelInfo[]>([]);
@@ -215,7 +233,15 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       }
     };
 
-    const handleSendMessage = (event: React.UIEvent, messageInput?: string) => {
+    const handleSendMessageWrapper = (event: React.UIEvent, messageInput?: string) => {
+      if (isTokenLimitReached) {
+        toast.warn('Daily token limit reached. Please upgrade to continue.', {
+          position: 'top-center',
+          autoClose: 5000,
+        });
+        return;
+      }
+      
       if (sendMessage) {
         sendMessage(event, messageInput);
 
@@ -232,6 +258,17 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
             handleInputChange(syntheticEvent);
           }
         }
+      }
+    };
+
+    const handleInputChangeWrapper = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+      if (isTokenLimitReached) {
+        event.preventDefault();
+        return;
+      }
+
+      if (handleInputChange) {
+        handleInputChange(event);
       }
     };
 
@@ -442,7 +479,9 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                               'w-full pl-4 pt-4 pr-16 outline-none resize-none text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary bg-transparent text-sm',
                               'transition-all duration-200',
                               'hover:border-bolt-elements-focus',
-                              hasReachedTokenLimit ? 'opacity-50 cursor-not-allowed' : '',
+                              {
+                                [styles.disabled]: isTokenLimitReached,
+                              },
                             )}
                             onDragEnter={(e) => {
                               e.preventDefault();
@@ -492,21 +531,19 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                                   return;
                                 }
 
-                                handleSendMessage?.(event);
+                                handleSendMessageWrapper?.(event);
                               }
                             }}
                             value={input}
-                            onChange={(event) => {
-                              handleInputChange?.(event);
-                            }}
+                            onChange={handleInputChangeWrapper}
                             onPaste={handlePaste}
                             style={{
                               minHeight: TEXTAREA_MIN_HEIGHT,
                               maxHeight: TEXTAREA_MAX_HEIGHT,
                             }}
-                            placeholder={hasReachedTokenLimit ? 'Token limit reached. Subscribe to Pro for more usage.' : 'How can Bolt help you today?'}
+                            placeholder={isTokenLimitReached ? 'Token limit reached. Upgrade to continue.' : 'How can Bolt help you today?'}
                             translate="no"
-                            disabled={hasReachedTokenLimit}
+                            disabled={isTokenLimitReached}
                           />
                         </div>
                         <ClientOnly>
@@ -514,7 +551,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                             <SendButton
                               show={input.length > 0 || isStreaming || uploadedFiles.length > 0}
                               isStreaming={isStreaming}
-                              disabled={!providerList || providerList.length === 0 || hasReachedTokenLimit}
+                              disabled={!providerList || providerList.length === 0 || isTokenLimitReached}
                               onClick={(event) => {
                                 if (isStreaming) {
                                   handleStop?.();
@@ -522,7 +559,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                                 }
 
                                 if (input.length > 0 || uploadedFiles.length > 0) {
-                                  handleSendMessage?.(event);
+                                  handleSendMessageWrapper?.(event);
                                 }
                               }}
                             />
@@ -609,7 +646,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                     return;
                   }
 
-                  handleSendMessage?.(event, messageInput);
+                  handleSendMessageWrapper?.(event, messageInput);
                 })}
               {!chatStarted && <StarterTemplates />}
             </div>
