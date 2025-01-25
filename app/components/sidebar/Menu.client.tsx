@@ -10,6 +10,8 @@ import { logger } from '~/utils/logger';
 import { HistoryItem } from './HistoryItem';
 import { binDates } from './date-binning';
 import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
+import { useAuth } from '../../../lib/AuthContext';
+import { LoginModal } from '~/components/auth/LoginModal';
 
 const menuVariants = {
   closed: {
@@ -55,11 +57,13 @@ function CurrentDateTime() {
 
 export const Menu = () => {
   const { duplicateCurrentChat, exportChat } = useChatHistory();
+  const { authState, signOut } = useAuth();
   const menuRef = useRef<HTMLDivElement>(null);
   const [list, setList] = useState<ChatHistoryItem[]>([]);
   const [open, setOpen] = useState(false);
   const [dialogContent, setDialogContent] = useState<DialogContent>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   const { filteredItems: filteredList, handleSearchChange } = useSearchFilter({
     items: list,
@@ -243,29 +247,77 @@ export const Menu = () => {
               <span className="inline-block i-ph:credit-card-thin" />
               Subscription
             </a>
-            <button
-              className="w-full flex items-center gap-2 px-3 py-2 text-left text-white bg-gray-900 hover:bg-gray-800 rounded-md transition-theme"
-              onClick={() => {
-                /* Implement sign out */
-              }}
-            >
-              <span className="inline-block i-ph:sign-out-thin" />
-              Sign Out
-            </button>
+            {authState.user && (
+              <button
+                className="w-full flex items-center gap-2 px-3 py-2 text-left text-white bg-gray-900 hover:bg-gray-800 rounded-md transition-theme"
+                onClick={async () => {
+                  try {
+                    await signOut();
+                    window.location.href = '/'; // Force a full page refresh
+                    toast.success('Signed out successfully');
+                  } catch (error) {
+                    console.error('Sign out error:', error);
+                    toast.error('Failed to sign out');
+                  }
+                }}
+              >
+                <span className="inline-block i-ph:sign-out-thin" />
+                Sign Out
+              </button>
+            )}
           </div>
           <div className="flex items-center justify-between p-4 border-t border-bolt-elements-borderColor">
-            <div className="flex items-center gap-2">
-              <img src="/avatar.png" alt="User avatar" className="w-8 h-8 rounded-full" />
-              <div className="text-sm">
-                <div className="font-medium text-bolt-elements-textPrimary">Toddyclipsgg</div>
-                <div className="text-xs text-bolt-elements-textTertiary">Personal Plan</div>
+            {authState.user ? (
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  {authState.user.isAdmin && (
+                    <div className="absolute -top-2 left-0 text-purple-400">
+                      <span className="inline-block i-ph:shield-star-thin" />
+                    </div>
+                  )}
+                  <img 
+                    src={authState.user.user_metadata?.avatar_url || "/avatar.png"} 
+                    alt="User avatar" 
+                    className="w-8 h-8 rounded-full" 
+                  />
+                </div>
+                <div className="text-sm">
+                  <div className="font-medium text-bolt-elements-textPrimary flex items-center gap-1">
+                    {authState.user.user_metadata?.full_name || authState.user.email}
+                    {authState.user.isAdmin && (
+                      <span className="text-xs px-1.5 py-0.5 bg-purple-500/10 text-purple-400 rounded">Admin</span>
+                    )}
+                  </div>
+                  <div className={`text-xs ${
+                    authState.user.plan?.plan_type === 'pro' 
+                      ? 'text-green-400 font-medium' 
+                      : 'text-bolt-elements-textTertiary'
+                  }`}>
+                    {authState.user.plan?.plan_type === 'pro' 
+                      ? 'Pro Plan' 
+                      : authState.user.plan?.plan_type === 'team'
+                      ? 'Team Plan'
+                      : authState.user.plan?.plan_type === 'enterprise'
+                      ? 'Enterprise Plan'
+                      : 'Free Plan'}
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                className="flex items-center gap-2 px-3 py-2 text-white bg-gray-900 hover:bg-gray-800 rounded-md transition-theme"
+              >
+                <span className="inline-block i-ph:sign-in-thin" />
+                Sign In
+              </button>
+            )}
             <ThemeSwitch />
           </div>
         </div>
       </div>
       <SettingsWindow open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
     </motion.div>
   );
 };

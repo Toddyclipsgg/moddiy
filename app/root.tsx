@@ -13,6 +13,9 @@ import xtermStyles from '@xterm/xterm/css/xterm.css?url';
 
 import 'virtual:uno.css';
 
+import { ToastContainer } from 'react-toastify';
+import { AuthProvider } from '../lib/AuthContext';
+
 export const links: LinksFunction = () => [
   {
     rel: 'icon',
@@ -72,6 +75,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <>
       {children}
+      <ToastContainer
+        position="bottom-right"
+        theme={theme as 'light' | 'dark'}
+        autoClose={5000}
+      />
       <ScrollRestoration />
       <Scripts />
     </>
@@ -93,8 +101,10 @@ export default function App() {
   }, []);
 
   return (
-    <Layout>
-      <Outlet />
-    </Layout>
+    <AuthProvider>
+      <Layout>
+        <Outlet />
+      </Layout>
+    </AuthProvider>
   );
 }
