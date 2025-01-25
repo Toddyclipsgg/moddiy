@@ -106,6 +106,8 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
   ) => {
     const tokenUsageStore = useTokenUsageStore();
     const [isTokenLimitReached, setIsTokenLimitReached] = useState(false);
+    const [placeholder, setPlaceholder] = useState('');
+    const fullPlaceholder = isTokenLimitReached ? 'Token limit reached. Upgrade to continue.' : 'How can Bolt help you today?';
 
     useEffect(() => {
       const currentTotalTokens = tokenUsageStore.dailyUsage.totalTokens;
@@ -225,6 +227,21 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         setIsListening(true);
       }
     };
+
+    useEffect(() => {
+      let index = 0;
+      setPlaceholder('');
+      
+      const typingInterval = setInterval(() => {
+        if (index < fullPlaceholder.length) {
+          setPlaceholder(fullPlaceholder.substring(0, index + 1));
+          index++;
+        } else {
+          clearInterval(typingInterval);
+        }
+      }, 100); // Adjust typing speed here
+      return () => clearInterval(typingInterval);
+    }, [fullPlaceholder]);
 
     const stopListening = () => {
       if (recognition) {
@@ -541,7 +558,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                               minHeight: TEXTAREA_MIN_HEIGHT,
                               maxHeight: TEXTAREA_MAX_HEIGHT,
                             }}
-                            placeholder={isTokenLimitReached ? 'Token limit reached. Upgrade to continue.' : 'How can Bolt help you today?'}
+                            placeholder={placeholder}
                             translate="no"
                             disabled={isTokenLimitReached}
                           />
