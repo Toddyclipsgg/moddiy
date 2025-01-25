@@ -4,7 +4,6 @@ import { toast } from 'react-toastify';
 import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle } from '~/components/ui/Dialog';
 import { ThemeSwitch } from '~/components/ui/ThemeSwitch';
 import { SettingsWindow } from '~/components/settings/SettingsWindow';
-import { SettingsButton } from '~/components/ui/SettingsButton';
 import { db, deleteById, getAll, chatId, type ChatHistoryItem, useChatHistory } from '~/lib/persistence';
 import { cubicEasingFn } from '~/utils/easings';
 import { logger } from '~/utils/logger';
@@ -151,7 +150,7 @@ export const Menu = () => {
         <div className="p-4 select-none">
           <a
             href="/"
-            className="flex gap-2 items-center bg-bolt-elements-sidebar-buttonBackgroundDefault text-bolt-elements-sidebar-buttonText hover:bg-bolt-elements-sidebar-buttonBackgroundHover rounded-md p-2 transition-theme mb-4"
+            className="flex gap-2 items-center bg-gray-900 text-white hover:bg-gray-800 rounded-md p-2 transition-theme mb-4"
           >
             <span className="inline-block i-bolt:chat scale-110" />
             Start new chat
@@ -221,9 +220,49 @@ export const Menu = () => {
             </Dialog>
           </DialogRoot>
         </div>
-        <div className="flex items-center justify-between border-t border-bolt-elements-borderColor p-4">
-          <SettingsButton onClick={() => setIsSettingsOpen(true)} />
-          <ThemeSwitch />
+        <div className="border-t border-bolt-elements-borderColor">
+          <div className="p-4 space-y-2">
+            <button
+              className="w-full flex items-center gap-2 px-3 py-2 text-left text-white bg-gray-900 hover:bg-gray-800 rounded-md transition-theme"
+              onClick={() => setIsSettingsOpen(true)}
+            >
+              <span className="inline-block i-ph:gear-six-thin" />
+              Settings
+            </button>
+            <a
+              href="/help"
+              className="w-full flex items-center gap-2 px-3 py-2 text-left text-white bg-gray-900 hover:bg-gray-800 rounded-md transition-theme"
+            >
+              <span className="inline-block i-ph:question-thin" />
+              Help Center
+            </a>
+            <a
+              href="/pricing"
+              className="w-full flex items-center gap-2 px-3 py-2 text-left text-white bg-gray-900 hover:bg-gray-800 rounded-md transition-theme"
+            >
+              <span className="inline-block i-ph:credit-card-thin" />
+              Subscription
+            </a>
+            <button
+              className="w-full flex items-center gap-2 px-3 py-2 text-left text-white bg-gray-900 hover:bg-gray-800 rounded-md transition-theme"
+              onClick={() => {
+                /* Implement sign out */
+              }}
+            >
+              <span className="inline-block i-ph:sign-out-thin" />
+              Sign Out
+            </button>
+          </div>
+          <div className="flex items-center justify-between p-4 border-t border-bolt-elements-borderColor">
+            <div className="flex items-center gap-2">
+              <img src="/avatar.png" alt="User avatar" className="w-8 h-8 rounded-full" />
+              <div className="text-sm">
+                <div className="font-medium text-bolt-elements-textPrimary">Toddyclipsgg</div>
+                <div className="text-xs text-bolt-elements-textTertiary">Personal Plan</div>
+              </div>
+            </div>
+            <ThemeSwitch />
+          </div>
         </div>
       </div>
       <SettingsWindow open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />

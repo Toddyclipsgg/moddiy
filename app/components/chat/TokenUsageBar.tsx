@@ -22,12 +22,14 @@ export const TokenUsageBar: React.FC<TokenUsageBarProps> = ({ subscribeUrl = '/p
             <span>Prompt: {store.dailyUsage.promptTokens.toLocaleString()}</span>
             <span>Completion: {store.dailyUsage.completionTokens.toLocaleString()}</span>
           </div>
-          <a 
-            href={subscribeUrl} 
-            className="text-[#b44aff] hover:text-[#c67aff] transition-all text-xs font-medium bg-[#2a1a3a] px-3 py-1 rounded-full hover:bg-[#331f47] whitespace-nowrap"
-          >
-            Subscribe to Pro for 66x more usage
-          </a>
+          {tokensRemaining <= 0 && (
+            <a
+              href={subscribeUrl}
+              className="text-[#b44aff] hover:text-[#c67aff] transition-all text-xs font-medium bg-[#2a1a3a] px-3 py-1 rounded-full hover:bg-[#331f47] whitespace-nowrap"
+            >
+              Subscribe to Pro for 66x more usage
+            </a>
+          )}
         </div>
       </div>
     </div>
