@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTokenUsageStore } from '~/lib/stores/tokenUsage';
 
-export const MAX_DAILY_TOKENS = 15000;
+export const MAX_DAILY_TOKENS = 50000;
 
 interface TokenUsageBarProps {
   subscribeUrl?: string;
