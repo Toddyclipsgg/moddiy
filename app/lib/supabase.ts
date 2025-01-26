@@ -158,4 +158,19 @@ export async function checkIsAdmin(email: string): Promise<boolean> {
     console.error('Error in checkIsAdmin:', error);
     return false;
   }
+}
+
+export async function getUserMaxTokens(userId: string) {
+    const { data, error } = await supabase
+        .from('users')
+        .select('max_daily_tokens')
+        .eq('id', userId)
+        .single();
+
+    if (error) {
+        console.error('Error fetching max tokens:', error);
+        return 0; // Retornar 0 em caso de erro
+    }
+
+    return data?.max_daily_tokens || 0;
 } 

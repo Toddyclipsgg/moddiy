@@ -10,25 +10,39 @@ interface TokenUsageBarProps {
 export const TokenUsageBar: React.FC<TokenUsageBarProps> = ({ subscribeUrl = '/pricing' }) => {
   const store = useTokenUsageStore();
   const { user } = useAuth();
-  const [maxDailyTokens, setMaxDailyTokens] = useState<number>(1000000); // Default to free plan limit
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [maxDailyTokens, setMaxDailyTokens] = useState<number>(0);
+  const [dailyTokenCount, setDailyTokenCount] = useState(0);
 
   useEffect(() => {
-    const fetchLimits = async () => {
-      if (user?.plan?.plan_type) {
-        const planLimits = await fetchPlanLimits(user.plan.plan_type);
-        if (planLimits) {
-          setMaxDailyTokens(planLimits.daily_tokens);
-        }
-      }
-    };
+    if (user) {
+      fetchTokenCount();
+      fetchMaxTokens();
+      setIsExpanded(true);
+    } else {
+      setIsExpanded(false);
+    }
+  }, [user]);
 
-    fetchLimits();
-  }, [user?.plan?.plan_type]);
+  const fetchTokenCount = async () => {
+    // Implementation of fetchTokenCount
+  };
+
+  const fetchMaxTokens = async () => {
+    if (user?.plan?.plan_type) {
+      const planLimits = await fetchPlanLimits(user.plan.plan_type);
+      if (planLimits) {
+        setMaxDailyTokens(planLimits.daily_tokens);
+      }
+    }
+  };
 
   const tokensRemaining = maxDailyTokens - store.dailyUsage.totalTokens;
 
+  if (!user) return null;
+
   return (
-    <div className="flex justify-center w-full">
+    <div className={`flex justify-center w-full ${isExpanded ? 'expanded' : ''}`}>
       <div className="w-[97%] px-2.5 py-1 bg-[#1a1a1a] text-white flex flex-col rounded-t-lg border border-gray-800">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium">
