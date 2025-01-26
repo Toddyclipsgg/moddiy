@@ -10,7 +10,7 @@ interface TokenUsageBarProps {
 export const TokenUsageBar: React.FC<TokenUsageBarProps> = ({ subscribeUrl = '/pricing' }) => {
   const store = useTokenUsageStore();
   const { user } = useAuth();
-  const [maxDailyTokens, setMaxDailyTokens] = useState<number>(20000); // Default to free plan limit
+  const [maxDailyTokens, setMaxDailyTokens] = useState<number>(1000000); // Default to free plan limit
 
   useEffect(() => {
     const fetchLimits = async () => {

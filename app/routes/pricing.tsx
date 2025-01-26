@@ -25,70 +25,55 @@ export default function Pricing() {
     {
       name: "Free",
       price: 0,
+      model: "deepseek-chat",
       tokens: "1M",
+      cache: "hit",
       highlight: false,
       features: [
-        "Basic code completion",
-        "Public repositories",
-        "Community support",
-        "Standard response time"
+        "DeepSeek-V3 Model",
+        "Image prompt support",
+        "Automatic caching",
+        "Integrated terminal"
       ],
-      description: "Perfect for solo developers exploring AI-powered development.",
+      description: "Perfect for individual developers and small projects",
       cta: "Get Started",
       ctaAction: () => navigate("/signup")
     },
     {
       name: "Pro",
       price: isAnnual ? 18 : 20,
-      tokens: "7M",
-      maxTokens: "5M",
+      model: "deepseek-reasoner",
+      tokens: "15M",
+      cache: "hit",
       highlight: true,
       features: [
-        "Advanced code completion",
-        "Private repositories",
-        "Priority support",
-        "Faster response time",
-        "Custom snippets"
+        "Everything in Free",
+        "DeepSeek-R1 Model",
+        "Multiple LLM providers",
+        "Chat history with backup",
+        "Terminal error detection"
       ],
-      description: "Ideal for professional developers seeking enhanced productivity.",
+      description: "For professional business and complex projects",
       cta: "Upgrade to Pro",
       ctaAction: () => navigate("/signup?plan=pro")
     },
     {
-      name: "Team",
-      price: isAnnual ? 45 : 50,
-      tokens: "25M",
-      maxTokens: "20M",
+      name: "Business",
+      price: isAnnual ? 90 : 100,
+      model: "both",
+      tokens: "60M",
+      cache: "priority",
       highlight: false,
       features: [
-        "Team collaboration",
-        "Shared snippets",
-        "Admin dashboard",
-        "Usage analytics",
-        "Team training",
-        "24/7 support"
+        "Everything in Pro",
+        "DeepSeek-V3 + R1 Models",
+        "Custom prompt library",
+        "GitHub integration",
+        "Local folder sync"
       ],
-      description: "Perfect for teams looking to streamline their development process.",
-      cta: "Choose Team",
-      ctaAction: () => navigate("/signup?plan=team")
-    },
-    {
-      name: "Enterprise",
-      price: "Custom",
-      tokens: "120M+",
-      maxTokens: "",
-      highlight: false,
-      features: [
-        "Custom integrations",
-        "Dedicated support",
-        "SLA guarantees",
-        "Security features",
-        "Custom training",
-        "API access"
-      ],
-      description: "Tailored solutions for large organizations with specific needs.",
-      cta: "Contact Sales",
-      ctaAction: () => navigate("/contact")
+      description: "Complete solution for large enterprises",
+      cta: "Get Started",
+      ctaAction: () => navigate("/signup?plan=business")
     }
   ];
 
@@ -123,8 +108,8 @@ export default function Pricing() {
             Pricing
           </h1>
           <p className="text-xl text-gray-400 max-w-2xl mx-auto px-4">
-            Start with a free account to speed up your workflow on public projects or
-            boost your entire team with instantly-opening production environments.
+            Prices calculated per million tokens. Tokens are text units processed
+            by the models. We offer flexible plans for different API usage needs.
           </p>
         </div>
 
@@ -150,7 +135,7 @@ export default function Pricing() {
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid md:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-3 gap-6">
           {plans.map((plan) => (
             <div
               key={plan.name}
@@ -182,10 +167,17 @@ export default function Pricing() {
 
               <div className="flex items-center gap-2 mb-6">
                 <span className="text-purple-400">⚡</span>
-                <span className="text-green-400">{plan.tokens} tokens</span>
-                {plan.maxTokens && (
-                  <span className="text-gray-400 line-through">{plan.maxTokens} tokens</span>
-                )}
+                <div className="flex flex-col">
+                  <span className="text-green-400">
+                    {plan.tokens} tokens
+                    {plan.cache && (
+                      <span className="text-xs text-purple-300 ml-2">({plan.cache})</span>
+                    )}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    Model: {plan.model}
+                  </span>
+                </div>
               </div>
 
               <div className="space-y-4 mb-8">
@@ -211,6 +203,22 @@ export default function Pricing() {
               </button>
             </div>
           ))}
+        </div>
+
+        {/* Enterprise Contact Section */}
+        <div className="mt-16 text-center">
+          <div className="max-w-lg mx-auto bg-[#1A1A1A] rounded-xl p-6 flex flex-col items-center">
+            <h3 className="text-xl font-bold">Need a Custom Solution?</h3>
+            <p className="text-gray-400 text-sm mt-2 mb-4">
+              For enterprise customers with specific requirements
+            </p>
+            <button
+              onClick={() => navigate("/contact")}
+              className="px-6 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm rounded-lg font-medium transition-colors"
+            >
+              Contact Sales
+            </button>
+          </div>
         </div>
       </div>
     </div>

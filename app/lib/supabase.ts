@@ -1,11 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = 'https://gppmbcipgbuvaqprakzt.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwcG1iY2lwZ2J1dmFxcHJha3p0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYyODA5NDgsImV4cCI6MjA1MTg1Njk0OH0.5w74G4Dqx9eeWufJV1ZmUABmLgAacr7wjenGjUmAGT4'
+const supabaseUrl = 'https://zlmaecetqgmtduusjlry.supabase.co'
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsbWFlY2V0cWdtdGR1dXNqbHJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc5MzA3NTIsImV4cCI6MjA1MzUwNjc1Mn0.NAHjP_QN1-he-VE66Kvi6OfPMEMFRoWHA5iFgNq0IK0'
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-export type PlanType = 'free' | 'pro' | 'team' | 'enterprise';
+export type PlanType = 'free' | 'pro' | 'business' | 'enterprise';
 
 // Interface para a sessão do Supabase
 export interface Session {

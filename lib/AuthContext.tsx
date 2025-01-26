@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { supabase, type AuthState, type AuthUser, fetchUserPlan, checkIsAdmin, ensureUserPlan } from './supabase'
+import type { Session, AuthChangeEvent } from '@supabase/supabase-js'
+import { supabase, type AuthState, type AuthUser, fetchUserPlan, checkIsAdmin } from '../app/lib/supabase'
 
 const AuthContext = createContext<{
   authState: AuthState
@@ -21,9 +22,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateUserWithPlanAndAdmin = async (baseUser: any | null): Promise<AuthUser | null> => {
     if (!baseUser?.email) return null;
     
-    // Ensure user has a plan before fetching it
-    await ensureUserPlan(baseUser.id, baseUser.email);
-    
     const [plan, isAdmin] = await Promise.all([
       fetchUserPlan(baseUser.id),
       checkIsAdmin(baseUser.email)
@@ -42,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check active sessions and sets the user
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }: { data: { session: Session | null } }) => {
       const userWithData = await updateUserWithPlanAndAdmin(session?.user ?? null);
       setAuthState({
         user: userWithData,
@@ -51,7 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
       const userWithData = await updateUserWithPlanAndAdmin(session?.user ?? null);
       setAuthState({
         user: userWithData,

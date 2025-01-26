@@ -295,8 +295,8 @@ export const Menu = () => {
                   }`}>
                     {authState.user.plan?.plan_type === 'pro' 
                       ? 'Pro Plan' 
-                      : authState.user.plan?.plan_type === 'team'
-                      ? 'Team Plan'
+                      : authState.user.plan?.plan_type === 'business'
+                      ? 'Business Plan'
                       : authState.user.plan?.plan_type === 'enterprise'
                       ? 'Enterprise Plan'
                       : 'Free Plan'}
