@@ -25,8 +25,7 @@ export default function Pricing() {
     {
       name: "Free",
       price: 0,
-      tokens: "1M",
-      maxTokens: "1M",
+      tokens: "1Million",
       highlight: false,
       features: [
         "Basic code completion",
@@ -41,8 +40,8 @@ export default function Pricing() {
     {
       name: "Pro",
       price: isAnnual ? 18 : 20,
-      tokens: "10M",
-      maxTokens: "25M",
+      tokens: "7M",
+      maxTokens: "5M",
       highlight: true,
       features: [
         "Advanced code completion",
@@ -58,8 +57,8 @@ export default function Pricing() {
     {
       name: "Team",
       price: isAnnual ? 45 : 50,
-      tokens: "26M",
-      maxTokens: "50M",
+      tokens: "30M",
+      maxTokens: "25M",
       highlight: false,
       features: [
         "Team collaboration",
@@ -76,7 +75,7 @@ export default function Pricing() {
     {
       name: "Enterprise",
       price: "Custom",
-      tokens: "100M+",
+      tokens: "75M+",
       maxTokens: "",
       highlight: false,
       features: [
@@ -95,6 +94,26 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-[#121212] text-white relative pt-16 pb-20 px-4">
+      <button
+        onClick={() => navigate('/')}
+        className="absolute left-4 top-4 flex items-center gap-2 px-4 py-2 bg-[#1A1A1A] hover:bg-[#2A2A2A] text-white hover:text-white/80 rounded-lg transition-colors"
+      >
+        <svg 
+          className="w-5 h-5" 
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            strokeWidth={2} 
+            d="M10 19l-7-7m0 0l7-7m-7 7h18" 
+          />
+        </svg>
+        <span className="text-sm">Voltar</span>
+      </button>
+
       <BrandingElement />
       
       <div className="max-w-7xl mx-auto relative">
