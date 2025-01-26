@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTokenUsageStore } from '~/lib/stores/tokenUsage';
-
-export const MAX_DAILY_TOKENS = 2000000;
+import { useAuth } from '~/lib/auth';
+import { fetchPlanLimits, type PlanLimits } from '~/lib/supabase';
 
 interface TokenUsageBarProps {
   subscribeUrl?: string;
@@ -9,7 +9,23 @@ interface TokenUsageBarProps {
 
 export const TokenUsageBar: React.FC<TokenUsageBarProps> = ({ subscribeUrl = '/pricing' }) => {
   const store = useTokenUsageStore();
-  const tokensRemaining = MAX_DAILY_TOKENS - store.dailyUsage.totalTokens;
+  const { user } = useAuth();
+  const [maxDailyTokens, setMaxDailyTokens] = useState<number>(20000); // Default to free plan limit
+
+  useEffect(() => {
+    const fetchLimits = async () => {
+      if (user?.plan?.plan_type) {
+        const planLimits = await fetchPlanLimits(user.plan.plan_type);
+        if (planLimits) {
+          setMaxDailyTokens(planLimits.daily_tokens);
+        }
+      }
+    };
+
+    fetchLimits();
+  }, [user?.plan?.plan_type]);
+
+  const tokensRemaining = maxDailyTokens - store.dailyUsage.totalTokens;
 
   return (
     <div className="flex justify-center w-full">

@@ -7,6 +7,19 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export type PlanType = 'free' | 'pro' | 'team' | 'enterprise';
 
+// Interface para a sessão do Supabase
+export interface Session {
+  user: {
+    id: string;
+    email?: string;
+    user_metadata: {
+      avatar_url?: string;
+      full_name?: string;
+    };
+  };
+  // Adicione outros campos necessários da sessão aqui
+}
+
 export interface UserPlan {
   id: string;
   user_id: string;
@@ -49,21 +62,15 @@ export interface PlanLimits {
 // Function to fetch user's plan
 export async function fetchUserPlan(userId: string): Promise<UserPlan | null> {
   try {
-    console.log('Tentando buscar plano para usuário:', userId);
-    
     // First, check if user_plans table exists and create it if not
     const { error: tableCheckError } = await supabase
       .from('user_plans')
       .select('id')
       .limit(1);
 
-    if (tableCheckError) {
-      console.error('Erro ao verificar tabela user_plans:', tableCheckError);
-      
-      if (tableCheckError.message.includes('relation "user_plans" does not exist')) {
-        console.log('Tabela user_plans não existe, tentando criar...');
-        await supabase.rpc('setup_admin_user', { admin_email: 'toddyprooo@gmail.com' });
-      }
+    if (tableCheckError && tableCheckError.message.includes('relation "user_plans" does not exist')) {
+      // Create the table via RPC
+      await supabase.rpc('setup_admin_user', { admin_email: 'toddyprooo@gmail.com' });
     }
 
     // Now fetch the active plan
@@ -151,46 +158,4 @@ export async function checkIsAdmin(email: string): Promise<boolean> {
     console.error('Error in checkIsAdmin:', error);
     return false;
   }
-}
-
-// Function to ensure user has a plan
-export async function ensureUserPlan(userId: string, email: string): Promise<void> {
-  try {
-    const plan = await fetchUserPlan(userId);
-    if (!plan) {
-      // If no plan exists, set up the user with appropriate plan
-      if (email === 'toddyprooo@gmail.com') {
-        await supabase.rpc('setup_admin_user', { admin_email: email });
-      } else {
-        // Set up free plan for other users
-        const { error } = await supabase
-          .from('user_plans')
-          .insert({
-            user_id: userId,
-            plan_type: 'free',
-            is_active: true
-          });
-        
-        if (error) console.error('Error setting up free plan:', error);
-      }
-    }
-  } catch (error) {
-    console.error('Error in ensureUserPlan:', error);
-  }
-}
-
-// Adicionar função de teste de conexão
-export async function testSupabaseConnection(): Promise<boolean> {
-  try {
-    const { data, error } = await supabase.auth.getSession();
-    if (error) {
-      console.error('Erro na conexão com Supabase:', error.message);
-      return false;
-    }
-    console.log('Conexão com Supabase estabelecida com sucesso');
-    return true;
-  } catch (error) {
-    console.error('Erro ao testar conexão:', error);
-    return false;
-  }
-}
+} 

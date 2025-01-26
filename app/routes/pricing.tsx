@@ -25,7 +25,7 @@ export default function Pricing() {
     {
       name: "Free",
       price: 0,
-      tokens: "1Million",
+      tokens: "1M",
       highlight: false,
       features: [
         "Basic code completion",
@@ -57,8 +57,8 @@ export default function Pricing() {
     {
       name: "Team",
       price: isAnnual ? 45 : 50,
-      tokens: "30M",
-      maxTokens: "25M",
+      tokens: "25M",
+      maxTokens: "20M",
       highlight: false,
       features: [
         "Team collaboration",
@@ -75,7 +75,7 @@ export default function Pricing() {
     {
       name: "Enterprise",
       price: "Custom",
-      tokens: "75M+",
+      tokens: "120M+",
       maxTokens: "",
       highlight: false,
       features: [

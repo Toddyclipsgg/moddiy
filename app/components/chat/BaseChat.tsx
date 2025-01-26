@@ -6,7 +6,8 @@ import type { Message } from 'ai';
 import React, { type RefCallback, useEffect, useState } from 'react';
 import { useStore } from '@nanostores/react';
 import { useTokenUsageStore } from '~/lib/stores/tokenUsage';
-import { MAX_DAILY_TOKENS } from './TokenUsageBar';
+import { useAuth } from '~/lib/auth';
+import { fetchPlanLimits } from '~/lib/supabase';
 import { ClientOnly } from 'remix-utils/client-only';
 import { Menu } from '~/components/sidebar/Menu.client';
 import { IconButton } from '~/components/ui/IconButton';
@@ -105,13 +106,28 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     ref,
   ) => {
     const tokenUsageStore = useTokenUsageStore();
+    const { user } = useAuth();
     const [isTokenLimitReached, setIsTokenLimitReached] = useState(false);
+    const [maxDailyTokens, setMaxDailyTokens] = useState(20000); // Default to free plan limit
     const [placeholder, setPlaceholder] = useState('');
     const fullPlaceholder = isTokenLimitReached ? 'Token limit reached. Upgrade to continue.' : 'How can Bolt help you today?';
 
     useEffect(() => {
+      const fetchLimits = async () => {
+        if (user?.plan?.plan_type) {
+          const planLimits = await fetchPlanLimits(user.plan.plan_type);
+          if (planLimits) {
+            setMaxDailyTokens(planLimits.daily_tokens);
+          }
+        }
+      };
+
+      fetchLimits();
+    }, [user?.plan?.plan_type]);
+
+    useEffect(() => {
       const currentTotalTokens = tokenUsageStore.dailyUsage.totalTokens;
-      const isLimitReached = currentTotalTokens >= MAX_DAILY_TOKENS;
+      const isLimitReached = currentTotalTokens >= maxDailyTokens;
       
       setIsTokenLimitReached(isLimitReached);
 
@@ -121,7 +137,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
           autoClose: 5000,
         });
       }
-    }, [tokenUsageStore.dailyUsage.totalTokens]);
+    }, [tokenUsageStore.dailyUsage.totalTokens, maxDailyTokens]);
 
     const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
     const [apiKeys, setApiKeys] = useState<Record<string, string>>(getApiKeysFromCookies());
