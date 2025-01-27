@@ -31,8 +31,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       id: baseUser.id,
       email: baseUser.email,
       user_metadata: baseUser.user_metadata,
-      plan,
-      isAdmin
+      plan: plan,
+      isAdmin: isAdmin
     };
     
     return user;

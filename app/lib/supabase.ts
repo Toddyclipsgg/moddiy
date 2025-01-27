@@ -59,6 +59,14 @@ export interface PlanLimits {
   daily_tokens: number;
 }
 
+// Interface para o uso de tokens
+export interface TokenUsage {
+  id?: string;
+  user_id: string;
+  tokens_used: number;
+  created_at?: string;
+}
+
 // Function to fetch user's plan
 export async function fetchUserPlan(userId: string): Promise<UserPlan | null> {
   try {
@@ -68,9 +76,9 @@ export async function fetchUserPlan(userId: string): Promise<UserPlan | null> {
       .select('id')
       .limit(1);
 
-    if (tableCheckError && tableCheckError.message.includes('relation "user_plans" does not exist')) {
-      // Create the table via RPC
-      await supabase.rpc('setup_admin_user', { admin_email: 'toddyprooo@gmail.com' });
+    if (tableCheckError) {
+      console.error('Table user_plans not found:', tableCheckError);
+      return null;
     }
 
     // Now fetch the active plan
@@ -79,12 +87,7 @@ export async function fetchUserPlan(userId: string): Promise<UserPlan | null> {
       .select('*')
       .eq('user_id', userId)
       .eq('is_active', true)
-      .single();
-
-    if (error) {
-      console.error('Error fetching user plan:', error);
-      return null;
-    }
+      .maybeSingle();
 
     return data;
   } catch (error) {
@@ -127,37 +130,19 @@ export async function fetchPlanLimits(planType: PlanType): Promise<PlanLimits | 
 }
 
 // Function to check if user is admin
-export async function checkIsAdmin(email: string): Promise<boolean> {
-  try {
-    // First, check if admin_users table exists
-    const { error: tableCheckError } = await supabase
-      .from('admin_users')
-      .select('id')
-      .limit(1);
+export async function checkIsAdmin(email: string) {
+  const { data, error } = await supabase
+    .from('admin_users')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
 
-    if (tableCheckError && tableCheckError.message.includes('relation "admin_users" does not exist')) {
-      // Create the table via RPC
-      await supabase.rpc('setup_admin_user', { admin_email: email });
-      return true; // Initial admin will be the one creating the table
-    }
-
-    // Now check if user is admin
-    const { data, error } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('email', email)
-      .single();
-
-    if (error) {
-      console.error('Error checking admin status:', error);
-      return false;
-    }
-
-    return !!data;
-  } catch (error) {
-    console.error('Error in checkIsAdmin:', error);
+  if (error) {
+    console.error('Error checking admin status:', error);
     return false;
   }
+
+  return !!data;
 }
 
 export async function getUserMaxTokens(userId: string) {
@@ -173,4 +158,68 @@ export async function getUserMaxTokens(userId: string) {
     }
 
     return data?.max_daily_tokens || 0;
+}
+
+// Função para atualizar o uso de tokens do usuário
+export async function updateTokenUsage(userId: string, tokensUsed: number): Promise<boolean> {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Primeiro, verifica se já existe um registro para hoje
+    const { data: existingUsage } = await supabase
+      .from('token_usage')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('created_at', today)
+      .lt('created_at', new Date(new Date().setDate(new Date().getDate() + 1)).toISOString())
+      .single();
+
+    if (existingUsage) {
+      // Atualiza o registro existente
+      const { error } = await supabase
+        .from('token_usage')
+        .update({ tokens_used: existingUsage.tokens_used + tokensUsed })
+        .eq('id', existingUsage.id);
+
+      if (error) throw error;
+    } else {
+      // Cria um novo registro
+      const { error } = await supabase
+        .from('token_usage')
+        .insert({
+          user_id: userId,
+          tokens_used: tokensUsed,
+          created_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Erro ao atualizar uso de tokens:', error);
+    return false;
+  }
+}
+
+// Função para obter o uso de tokens do dia atual
+export async function getCurrentDayTokenUsage(userId: string): Promise<number> {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const { data, error } = await supabase
+      .from('token_usage')
+      .select('tokens_used')
+      .eq('user_id', userId)
+      .gte('created_at', today)
+      .lt('created_at', new Date(new Date().setDate(new Date().getDate() + 1)).toISOString())
+      .single();
+
+    if (error) throw error;
+    
+    return data?.tokens_used || 0;
+  } catch (error) {
+    console.error('Erro ao obter uso de tokens:', error);
+    return 0;
+  }
 } 
