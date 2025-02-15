@@ -14,6 +14,7 @@ import globalStyles from './styles/index.scss?url';
 import xtermStyles from '@xterm/xterm/css/xterm.css?url';
 
 import 'virtual:uno.css';
+import { AuthModal } from '~/components/auth/AuthModal';
 
 export const links: LinksFunction = () => [
   {
@@ -76,6 +77,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {children}
       <ScrollRestoration />
       <Scripts />
+      <AuthModal />
     </DndProvider>
   );
 }

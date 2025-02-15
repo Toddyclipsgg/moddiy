@@ -15,6 +15,9 @@ import { SendButton } from './SendButton.client';
 import { APIKeyManager, getApiKeysFromCookies } from './APIKeyManager';
 import Cookies from 'js-cookie';
 import * as Tooltip from '@radix-ui/react-tooltip';
+import { useStore } from '@nanostores/react';
+import { authStore, updateAuthModal } from '~/lib/stores/auth';
+import { authModalStore } from '~/lib/stores/auth';
 
 import styles from './BaseChat.module.scss';
 import { ExportChatButton } from '~/components/chat/chatExportAndImport/ExportChatButton';
@@ -113,6 +116,8 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     const [transcript, setTranscript] = useState('');
     const [isModelLoading, setIsModelLoading] = useState<string | undefined>('all');
     const [progressAnnotations, setProgressAnnotations] = useState<ProgressAnnotation[]>([]);
+    const auth = useStore(authStore);
+
     useEffect(() => {
       if (data) {
         const progressList = data.filter(
@@ -225,15 +230,19 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     };
 
     const handleSendMessage = (event: React.UIEvent, messageInput?: string) => {
+      if (!auth.isAuthenticated || auth.isGuest) {
+        updateAuthModal({ isOpen: true, type: 'signin' });
+        return;
+      }
+
       if (sendMessage) {
         sendMessage(event, messageInput);
 
         if (recognition) {
-          recognition.abort(); // Stop current recognition
-          setTranscript(''); // Clear transcript
+          recognition.abort();
+          setTranscript('');
           setIsListening(false);
 
-          // Clear the input by triggering handleInputChange with empty value
           if (handleInputChange) {
             const syntheticEvent = {
               target: { value: '' },
@@ -446,6 +455,9 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         'w-full pl-4 pt-4 pr-16 outline-none resize-none text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary bg-transparent text-sm',
                         'transition-all duration-200',
                         'hover:border-bolt-elements-focus',
+                        {
+                          'opacity-80': !auth.isAuthenticated || auth.isGuest
+                        }
                       )}
                       onDragEnter={(e) => {
                         e.preventDefault();
@@ -490,7 +502,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                             return;
                           }
 
-                          // ignore if using input method engine
                           if (event.nativeEvent.isComposing) {
                             return;
                           }
@@ -507,7 +518,11 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         minHeight: TEXTAREA_MIN_HEIGHT,
                         maxHeight: TEXTAREA_MAX_HEIGHT,
                       }}
-                      placeholder="How can Bolt help you today?"
+                      placeholder={
+                        !auth.isAuthenticated || auth.isGuest
+                          ? 'Please sign in to send messages'
+                          : 'How can Bolt help you today?'
+                      }
                       translate="no"
                     />
                     <ClientOnly>

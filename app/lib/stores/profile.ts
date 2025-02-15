@@ -1,4 +1,5 @@
 import { atom } from 'nanostores';
+import { authStore, updateUserData } from './auth';
 
 interface Profile {
   username: string;
@@ -6,23 +7,54 @@ interface Profile {
   avatar: string;
 }
 
-// Initialize with stored profile or defaults
-const storedProfile = typeof window !== 'undefined' ? localStorage.getItem('bolt_profile') : null;
-const initialProfile: Profile = storedProfile
-  ? JSON.parse(storedProfile)
-  : {
-      username: '',
+// Initialize profile store with auth user data or defaults
+const getInitialProfile = (): Profile => {
+  const authState = authStore.get();
+  if (authState.user) {
+    return {
+      username: authState.user.username,
+      bio: authState.user.bio || '',
+      avatar: authState.user.avatar || '',
+    };
+  }
+  return {
+    username: 'Guest User',
+    bio: '',
+    avatar: '',
+  };
+};
+
+export const profileStore = atom<Profile>(getInitialProfile());
+
+// Subscribe to auth store changes
+authStore.subscribe((authState) => {
+  if (authState.user) {
+    profileStore.set({
+      username: authState.user.username,
+      bio: authState.user.bio || '',
+      avatar: authState.user.avatar || '',
+    });
+  } else {
+    profileStore.set({
+      username: 'Guest User',
       bio: '',
       avatar: '',
-    };
-
-export const profileStore = atom<Profile>(initialProfile);
+    });
+  }
+});
 
 export const updateProfile = (updates: Partial<Profile>) => {
-  profileStore.set({ ...profileStore.get(), ...updates });
+  const currentProfile = profileStore.get();
+  const newProfile = { ...currentProfile, ...updates };
+  
+  // Update profile store
+  profileStore.set(newProfile);
+
+  // Sync with auth store
+  updateUserData(updates);
 
   // Persist to localStorage
   if (typeof window !== 'undefined') {
-    localStorage.setItem('bolt_profile', JSON.stringify(profileStore.get()));
+    localStorage.setItem('bolt_profile', JSON.stringify(newProfile));
   }
 };
