@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useStore } from '@nanostores/react';
 import { classNames } from '~/utils/classNames';
 import { profileStore, updateProfile } from '~/lib/stores/profile';
@@ -9,6 +9,38 @@ export default function ProfileTab() {
   const profile = useStore(profileStore);
   const auth = useStore(authStore);
   const [isUploading, setIsUploading] = useState(false);
+  const [toastTimeout, setToastTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  const handleProfileUpdate = useCallback(
+    (field: 'username' | 'bio' | 'email', value: string) => {
+      if (field === 'email' && auth.user) {
+        // TODO: Implement email change with proper verification
+        toast.info('Email change requires verification - coming soon');
+        return;
+      }
+
+      updateProfile({ [field]: value });
+
+      if (toastTimeout) {
+        clearTimeout(toastTimeout);
+      }
+
+      const timeout = setTimeout(() => {
+        toast.success(`${field.charAt(0).toUpperCase() + field.slice(1)} updated`);
+      }, 1000);
+
+      setToastTimeout(timeout);
+    },
+    [toastTimeout, auth.user],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeout) {
+        clearTimeout(toastTimeout);
+      }
+    };
+  }, [toastTimeout]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -41,23 +73,6 @@ export default function ProfileTab() {
       setIsUploading(false);
       toast.error('Failed to update profile picture');
     }
-  };
-
-  const handleProfileUpdate = (field: 'username' | 'bio' | 'email', value: string) => {
-    if (field === 'email' && auth.user) {
-      // TODO: Implement email change with proper verification
-      toast.info('Email change requires verification - coming soon');
-      return;
-    }
-
-    updateProfile({ [field]: value });
-
-    // Only show toast for completed typing (after 1 second of no typing)
-    const debounceToast = setTimeout(() => {
-      toast.success(`${field.charAt(0).toUpperCase() + field.slice(1)} updated`);
-    }, 1000);
-
-    return () => clearTimeout(debounceToast);
   };
 
   if (!auth.isAuthenticated || auth.isGuest) {
