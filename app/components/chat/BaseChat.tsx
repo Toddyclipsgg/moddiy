@@ -115,7 +115,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     const [isModelLoading, setIsModelLoading] = useState<string | undefined>('all');
     const [progressAnnotations, setProgressAnnotations] = useState<ProgressAnnotation[]>([]);
     const [triggeredSupabaseAlert, setTriggeredSupabaseAlert] = useState(false);
-    const dbKeywords = ['banco de dados', 'database', 'sql'];
+    const dbKeywords = ['/supabase'];
     useEffect(() => {
       if (data) {
         const progressList = data.filter(
@@ -189,7 +189,9 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     }, [providerList, provider]);
 
     useEffect(() => {
-      if (!actionAlert && input) {
+      if (actionAlert) {
+        setTriggeredSupabaseAlert(false);
+      } else if (input) {
         const lowerInput = input.toLowerCase();
         const hasDBKeyword = dbKeywords.some(keyword => lowerInput.includes(keyword));
         setTriggeredSupabaseAlert(hasDBKeyword);
@@ -372,18 +374,24 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         }}
                       />
                     )
-                  ) : (
-                    triggeredSupabaseAlert && (
-                      <SupabaseAlert
-                        alert={{ description: 'We have detected that your project requires a database.', source: 'supabase' }}
-                        clearAlert={() => setTriggeredSupabaseAlert(false)}
-                        postMessage={(message) => {
-                          sendMessage?.({} as any, message);
-                          setTriggeredSupabaseAlert(false);
-                        }}
-                      />
-                    )
-                  )}
+                  ) : triggeredSupabaseAlert ? (
+                    <SupabaseAlert
+                      alert={{
+                        type: 'info',
+                        title: 'Database Integration',
+                        description: 'We have detected that your project requires a database.',
+                        content: '',
+                        source: 'supabase'
+                      }}
+                      clearAlert={() => {
+                        setTriggeredSupabaseAlert(false);
+                      }}
+                      postMessage={(message) => {
+                        sendMessage?.({} as any, message);
+                        setTriggeredSupabaseAlert(false);
+                      }}
+                    />
+                  ) : null}
                 </div>
                 {progressAnnotations && <ProgressCompilation data={progressAnnotations} />}
                 <div
