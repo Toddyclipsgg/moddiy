@@ -4,6 +4,7 @@ import { classNames } from '~/utils/classNames';
 import { profileStore, updateProfile } from '~/lib/stores/profile';
 import { authStore } from '~/lib/stores/auth';
 import { toast } from 'react-toastify';
+import { debounce } from '~/utils/debounce';
 
 export default function ProfileTab() {
   const profile = useStore(profileStore);
@@ -41,6 +42,15 @@ export default function ProfileTab() {
       }
     };
   }, [toastTimeout]);
+
+  // Create debounced update functions
+  const debouncedUpdate = useCallback(
+    debounce((field: 'username' | 'bio', value: string) => {
+      updateProfile({ [field]: value });
+      toast.success(`${field.charAt(0).toUpperCase() + field.slice(1)} updated`);
+    }, 1000),
+    [],
+  );
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -104,6 +114,13 @@ export default function ProfileTab() {
       </div>
     );
   }
+  const handleProfileUpdate = (field: 'username' | 'bio', value: string) => {
+    // Update the store immediately for UI responsiveness
+    updateProfile({ [field]: value });
+
+    // Debounce the toast notification
+    debouncedUpdate(field, value);
+  };
 
   return (
     <div className="max-w-2xl mx-auto">
