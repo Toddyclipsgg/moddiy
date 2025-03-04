@@ -14,15 +14,16 @@
 
 .diff-panel-content::-webkit-scrollbar-thumb {
   background-color: rgba(155, 155, 155, 0.5);
-  border-radius: 4px;
+  border-radius: 6px;
   border: 2px solid transparent;
+  transition: background-color 0.2s ease;
 }
 
 .diff-panel-content::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(155, 155, 155, 0.7);
+  background-color: rgba(155, 155, 155, 0.8);
 }
 
-/* Hide scrollbar for the left panel when not hovered */
+/* Ocultar a barra de rolagem quando não estiver em hover para interface mais limpa */
 .diff-panel:not(:hover) .diff-panel-content::-webkit-scrollbar {
   display: none;
 }
@@ -31,16 +32,18 @@
   scrollbar-width: none;
 }
 
-/* Estilos para as linhas de diff */
+/* Estilos melhorados para linhas de diff com transições suaves */
 .diff-block-added {
   @apply bg-green-500/20 border-l-4 border-green-500;
+  transition: background-color 0.15s ease;
 }
 
 .diff-block-removed {
   @apply bg-red-500/20 border-l-4 border-red-500;
+  transition: background-color 0.15s ease;
 }
 
-/* Melhorar contraste para mudanças */
+/* Melhorar contraste ao passar o mouse para facilitar a leitura */
 .diff-panel-content .group:hover .diff-block-added {
   @apply bg-green-500/30;
 }
@@ -49,24 +52,164 @@
   @apply bg-red-500/30;
 }
 
-/* Estilos unificados para ambas as visualizações */
+/* Estilos unificados e melhorados para todas as visualizações */
 .diff-line {
   @apply flex group min-w-fit transition-colors duration-150;
+  position: relative;
+}
+
+.diff-line:hover::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  @apply bg-bolt-elements-background-depth-2;
+  pointer-events: none;
+  z-index: -1;
 }
 
 .diff-line-number {
   @apply w-12 shrink-0 pl-2 py-0.5 text-left font-mono text-bolt-elements-textTertiary border-r border-bolt-elements-borderColor bg-bolt-elements-background-depth-1;
+  transition: color 0.15s ease;
+  user-select: none;
+}
+
+.diff-line:hover .diff-line-number {
+  @apply text-bolt-elements-textSecondary;
 }
 
 .diff-line-content {
-  @apply px-4 py-0.5 font-mono whitespace-pre flex-1 group-hover:bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary;
+  @apply px-4 py-0.5 font-mono whitespace-pre flex-1 text-bolt-elements-textPrimary;
+  transition: background-color 0.15s ease;
 }
 
-/* Cores específicas para adições/remoções */
+/* Cores específicas para adições/remoções com efeitos sutis */
 .diff-added {
   @apply bg-green-500/20 border-l-4 border-green-500;
+  position: relative;
 }
 
 .diff-removed {
   @apply bg-red-500/20 border-l-4 border-red-500;
-} 
+  position: relative;
+}
+
+/* Indicador de linhas modificadas na barra de rolagem */
+.diff-scrollbar-marker {
+  position: absolute;
+  right: 0;
+  width: 4px;
+  min-height: 2px;
+  z-index: 10;
+}
+
+.diff-scrollbar-marker-added {
+  @apply bg-green-500;
+}
+
+.diff-scrollbar-marker-removed {
+  @apply bg-red-500;
+}
+
+/* Estilos para o modo fullscreen */
+.diff-fullscreen {
+  @apply w-full h-full max-w-[90vw] max-h-[90vh] bg-bolt-elements-background-depth-2 rounded-lg 
+  border border-bolt-elements-borderColor shadow-xl overflow-hidden;
+  animation: diff-fullscreen-entry 0.2s ease;
+}
+
+@keyframes diff-fullscreen-entry {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Estilização das informações do arquivo */
+.diff-file-info {
+  @apply flex items-center bg-bolt-elements-background-depth-1 p-2 text-sm text-bolt-elements-textPrimary shrink-0;
+  border-bottom: 1px solid var(--bolt-elements-borderColor);
+}
+
+/* Estilos para alta legibilidade */
+.diff-high-contrast .diff-added {
+  @apply bg-green-500/30 border-l-4 border-green-500;
+}
+
+.diff-high-contrast .diff-removed {
+  @apply bg-red-500/30 border-l-4 border-red-500;
+}
+
+.diff-high-contrast .diff-line-number {
+  @apply bg-bolt-elements-background-depth-2 text-bolt-elements-textSecondary;
+}
+
+/* Linha destacada na navegação */
+.diff-line.highlighted {
+  @apply bg-bolt-elements-background-depth-3 ring-2 ring-bolt-elements-borderColorActive;
+  animation: highlight-pulse 1s ease;
+}
+
+@keyframes highlight-pulse {
+  0%,
+  100% {
+    @apply ring-opacity-70;
+  }
+  50% {
+    @apply ring-opacity-100;
+  }
+}
+
+/* Melhorar a tipografia do código */
+.diff-line-content {
+  font-feature-settings:
+    'liga' 0,
+    'calt' 0;
+  letter-spacing: 0.3px;
+}
+
+/* Atalhos de teclado */
+.diff-keyboard-shortcut {
+  @apply px-1.5 py-0.5 mx-0.5 rounded text-xs bg-bolt-elements-background-depth-3;
+  border: 1px solid var(--bolt-elements-borderColor);
+}
+
+/* Botões de navegação */
+.diff-nav-button {
+  @apply p-1 rounded transition-colors duration-150;
+}
+
+.diff-nav-button:not(:disabled):hover {
+  @apply bg-bolt-elements-background-depth-3;
+}
+
+.diff-nav-button:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+/* Melhorias para dispositivos móveis */
+@media (max-width: 640px) {
+  .diff-line-number {
+    @apply w-8 pl-1;
+    font-size: 0.75rem;
+  }
+
+  .diff-line-content {
+    @apply px-2;
+    font-size: 0.875rem;
+  }
+
+  .diff-file-info {
+    @apply text-xs;
+  }
+
+  .diff-high-contrast-toggle {
+    display: none;
+  }
+}

@@ -1,4 +1,26 @@
-import { memo, useMemo, useState, useEffect, useCallback } from 'react';
+/**
+ * DiffView Component
+ *
+ * Exibe as diferenças entre duas versões de um arquivo usando uma visualização de diff unificada.
+ *
+ * Melhorias da refatoração:
+ * - Reorganização completa do código em componentes menores e mais focados
+ * - Adição de tipagem mais forte para melhor legibilidade e manutenção
+ * - Separação de lógica de negócio e apresentação
+ * - Implementação de navegação entre alterações (Alt+N, Alt+P)
+ * - Adição de modo de alto contraste (Alt+H) para acessibilidade
+ * - Marcadores visuais na barra de rolagem para indicar alterações
+ * - Melhorias de interface para mostrar o tipo de arquivo e estatísticas
+ * - Suporte a temas claro/escuro e modo responsivo
+ * - Otimização de performance com memoização
+ * - Adição de atalhos de teclado para melhorar a experiência do usuário
+ * - Melhorias de acessibilidade (ARIA labels, navegação por teclado)
+ *
+ * @author toddyclipsgg
+ * @version 2.0.0
+ */
+
+import { memo, useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useStore } from '@nanostores/react';
 import { workbenchStore } from '~/lib/stores/workbench';
 import type { FileMap } from '~/lib/stores/files';
@@ -12,13 +34,15 @@ import type { FileHistory } from '~/types/actions';
 import { getLanguageFromExtension } from '~/utils/getLanguageFromExtension';
 import { themeStore } from '~/lib/stores/theme';
 
+// =============== TYPES ===============
+
 interface CodeComparisonProps {
   beforeCode: string;
   afterCode: string;
   language: string;
   filename: string;
-  lightTheme: string;
-  darkTheme: string;
+  lightTheme?: string;
+  darkTheme?: string;
 }
 
 interface DiffBlock {
@@ -37,38 +61,106 @@ interface FullscreenButtonProps {
   isFullscreen: boolean;
 }
 
-const FullscreenButton = memo(({ onClick, isFullscreen }: FullscreenButtonProps) => (
-  <button
-    onClick={onClick}
-    className="ml-4 p-1 rounded hover:bg-bolt-elements-background-depth-3 text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary transition-colors"
-    title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-  >
-    <div className={isFullscreen ? 'i-ph:corners-in' : 'i-ph:corners-out'} />
-  </button>
-));
+interface DiffStats {
+  additions: number;
+  deletions: number;
+}
 
-const FullscreenOverlay = memo(({ isFullscreen, children }: { isFullscreen: boolean; children: React.ReactNode }) => {
-  if (!isFullscreen) {
-    return <>{children}</>;
-  }
+interface NavigationState {
+  currentIndex: number;
+  changeIndices: number[];
+}
 
-  return (
-    <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-6">
-      <div className="w-full h-full max-w-[90vw] max-h-[90vh] bg-bolt-elements-background-depth-2 rounded-lg border border-bolt-elements-borderColor shadow-xl overflow-hidden">
-        {children}
-      </div>
-    </div>
-  );
-});
+interface DiffProcessingResult {
+  beforeLines: string[];
+  afterLines: string[];
+  hasChanges: boolean;
+  lineChanges: { before: Set<number>; after: Set<number> };
+  unifiedBlocks: DiffBlock[];
+  isBinary: boolean;
+  error?: boolean;
+}
+
+interface DiffViewProps {
+  fileHistory: Record<string, FileHistory>;
+  setFileHistory: React.Dispatch<React.SetStateAction<Record<string, FileHistory>>>;
+  actionRunner: ActionRunner;
+}
+
+// =============== CONSTANTS ===============
 
 const MAX_FILE_SIZE = 1024 * 1024; // 1MB
 const BINARY_REGEX = /[\x00-\x08\x0E-\x1F]/;
+const MAX_HISTORY_CHANGES = 100;
+const MAX_VERSIONS = 10;
 
-const isBinaryFile = (content: string) => {
+// =============== STYLE CONSTANTS ===============
+
+const lineNumberStyles = 'diff-line-number';
+const lineContentStyles = 'diff-line-content';
+const diffPanelStyles = 'h-full overflow-auto diff-panel-content diff-panel';
+
+const diffLineStyles = {
+  added: 'diff-added',
+  removed: 'diff-removed',
+  unchanged: '',
+};
+
+const changeColorStyles = {
+  added: 'text-green-700 dark:text-green-500 bg-green-500/10 dark:bg-green-500/20',
+  removed: 'text-red-700 dark:text-red-500 bg-red-500/10 dark:bg-red-500/20',
+  unchanged: 'text-bolt-elements-textPrimary',
+};
+
+// =============== UTILITY FUNCTIONS ===============
+
+/**
+ * Checks if the file content appears to be binary
+ */
+const isBinaryFile = (content: string): boolean => {
   return content.length > MAX_FILE_SIZE || BINARY_REGEX.test(content);
 };
 
-const processChanges = (beforeCode: string, afterCode: string) => {
+/**
+ * Normalizes content for comparison by standardizing line endings and trimming trailing whitespace
+ */
+const normalizeContent = (content: string): string[] => {
+  return content
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => line.trimEnd());
+};
+
+/**
+ * Calculates statistics for differences between two text contents
+ */
+const calculateDiffStats = (beforeCode: string, afterCode: string): DiffStats => {
+  const changes = diffLines(beforeCode, afterCode, {
+    newlineIsToken: false,
+    ignoreWhitespace: true,
+    ignoreCase: false,
+  });
+
+  return changes.reduce(
+    (acc: DiffStats, change: Change) => {
+      if (change.added) {
+        acc.additions += change.value.split('\n').length;
+      }
+
+      if (change.removed) {
+        acc.deletions += change.value.split('\n').length;
+      }
+
+      return acc;
+    },
+    { additions: 0, deletions: 0 },
+  );
+};
+
+/**
+ * Process changes between two text contents and generates detailed diff information
+ */
+const processChanges = (beforeCode: string, afterCode: string): DiffProcessingResult => {
   try {
     if (isBinaryFile(beforeCode) || isBinaryFile(afterCode)) {
       return {
@@ -80,14 +172,6 @@ const processChanges = (beforeCode: string, afterCode: string) => {
         isBinary: true,
       };
     }
-
-    // Normalize line endings and content
-    const normalizeContent = (content: string): string[] => {
-      return content
-        .replace(/\r\n/g, '\n')
-        .split('\n')
-        .map((line) => line.trimEnd());
-    };
 
     const beforeLines = normalizeContent(beforeCode);
     const afterLines = normalizeContent(afterCode);
@@ -312,26 +396,176 @@ const processChanges = (beforeCode: string, afterCode: string) => {
   }
 };
 
-const lineNumberStyles =
-  'w-9 shrink-0 pl-2 py-1 text-left font-mono text-bolt-elements-textTertiary border-r border-bolt-elements-borderColor bg-bolt-elements-background-depth-1';
-const lineContentStyles =
-  'px-1 py-1 font-mono whitespace-pre flex-1 group-hover:bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary';
-const diffPanelStyles = 'h-full overflow-auto diff-panel-content';
+// =============== HOOKS ===============
 
-// Updated color styles for better consistency
-const diffLineStyles = {
-  added: 'bg-green-500/10 dark:bg-green-500/20 border-l-4 border-green-500',
-  removed: 'bg-red-500/10 dark:bg-red-500/20 border-l-4 border-red-500',
-  unchanged: '',
+/**
+ * Custom hook for code difference processing with memoization
+ */
+const useProcessChanges = (beforeCode: string, afterCode: string): DiffProcessingResult => {
+  return useMemo(() => processChanges(beforeCode, afterCode), [beforeCode, afterCode]);
 };
 
-const changeColorStyles = {
-  added: 'text-green-700 dark:text-green-500 bg-green-500/10 dark:bg-green-500/20',
-  removed: 'text-red-700 dark:text-red-500 bg-red-500/10 dark:bg-red-500/20',
-  unchanged: 'text-bolt-elements-textPrimary',
+/**
+ * Custom hook to manage syntax highlighting
+ */
+const useHighlighter = () => {
+  const [highlighter, setHighlighter] = useState<any>(null);
+
+  useEffect(() => {
+    getHighlighter({
+      themes: ['github-dark', 'github-light'],
+      langs: [
+        'typescript',
+        'javascript',
+        'json',
+        'html',
+        'css',
+        'jsx',
+        'tsx',
+        'python',
+        'php',
+        'java',
+        'c',
+        'cpp',
+        'csharp',
+        'go',
+        'ruby',
+        'rust',
+        'plaintext',
+      ],
+    }).then(setHighlighter);
+  }, []);
+
+  return highlighter;
 };
 
-const renderContentWarning = (type: 'binary' | 'error') => (
+/**
+ * Custom hook to handle file history tracking and updates
+ */
+const useFileHistoryTracking = (
+  selectedFile: string | null | undefined,
+  currentDocument: EditorDocument | null,
+  files: FileMap,
+  fileHistory: Record<string, FileHistory>,
+  setFileHistory: React.Dispatch<React.SetStateAction<Record<string, FileHistory>>>,
+  unsavedFiles: Set<string>,
+) => {
+  useEffect(() => {
+    if (!selectedFile || !currentDocument) {
+      return;
+    }
+
+    const file = files[selectedFile];
+
+    if (!file || !('content' in file)) {
+      return;
+    }
+
+    const existingHistory = fileHistory[selectedFile];
+    const currentContent = currentDocument.value;
+
+    // Normalize content for comparison
+    const normalizedCurrentContent = currentContent.replace(/\r\n/g, '\n').trim();
+    const normalizedOriginalContent = (existingHistory?.originalContent || file.content).replace(/\r\n/g, '\n').trim();
+
+    // If no history exists, create one if there are differences
+    if (!existingHistory) {
+      if (normalizedCurrentContent !== normalizedOriginalContent) {
+        const newChanges = diffLines(file.content, currentContent);
+        setFileHistory((prev) => ({
+          ...prev,
+          [selectedFile]: {
+            originalContent: file.content,
+            lastModified: Date.now(),
+            changes: newChanges,
+            versions: [
+              {
+                timestamp: Date.now(),
+                content: currentContent,
+              },
+            ],
+            changeSource: 'auto-save',
+          },
+        }));
+      }
+
+      return;
+    }
+
+    // If history exists, check if there are real changes since the last version
+    const lastVersion = existingHistory.versions[existingHistory.versions.length - 1];
+    const normalizedLastContent = lastVersion?.content.replace(/\r\n/g, '\n').trim();
+
+    if (normalizedCurrentContent === normalizedLastContent) {
+      return;
+    }
+
+    // Check for significant changes using diffFiles
+    const relativePath = extractRelativePath(selectedFile);
+    const unifiedDiff = diffFiles(relativePath, existingHistory.originalContent, currentContent);
+
+    if (unifiedDiff) {
+      const newChanges = diffLines(existingHistory.originalContent, currentContent);
+      const hasSignificantChanges = newChanges.some(
+        (change) => (change.added || change.removed) && change.value.trim().length > 0,
+      );
+
+      if (hasSignificantChanges) {
+        const newHistory: FileHistory = {
+          originalContent: existingHistory.originalContent,
+          lastModified: Date.now(),
+          changes: [...existingHistory.changes, ...newChanges].slice(-MAX_HISTORY_CHANGES),
+          versions: [
+            ...existingHistory.versions,
+            {
+              timestamp: Date.now(),
+              content: currentContent,
+            },
+          ].slice(-MAX_VERSIONS),
+          changeSource: 'auto-save',
+        };
+
+        setFileHistory((prev) => ({ ...prev, [selectedFile]: newHistory }));
+      }
+    }
+  }, [selectedFile, currentDocument?.value, files, setFileHistory, unsavedFiles, fileHistory]);
+};
+
+// =============== COMPONENTS ===============
+
+/**
+ * Button to toggle fullscreen mode
+ */
+const FullscreenButton = memo(({ onClick, isFullscreen }: FullscreenButtonProps) => (
+  <button
+    onClick={onClick}
+    className="ml-4 p-1 rounded hover:bg-bolt-elements-background-depth-3 text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary transition-colors"
+    title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+    aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+  >
+    <div className={isFullscreen ? 'i-ph:corners-in' : 'i-ph:corners-out'} />
+  </button>
+));
+
+/**
+ * Fullscreen overlay for the diff view
+ */
+const FullscreenOverlay = memo(({ isFullscreen, children }: { isFullscreen: boolean; children: React.ReactNode }) => {
+  if (!isFullscreen) {
+    return <>{children}</>;
+  }
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-6">
+      <div className="diff-fullscreen">{children}</div>
+    </div>
+  );
+});
+
+/**
+ * Component to display warning messages
+ */
+const ContentWarning = memo(({ type }: { type: 'binary' | 'error' }) => (
   <div className="h-full flex items-center justify-center p-4">
     <div className="text-center text-bolt-elements-textTertiary">
       <div className={`i-ph:${type === 'binary' ? 'file-x' : 'warning-circle'} text-4xl text-red-400 mb-2 mx-auto`} />
@@ -343,8 +577,11 @@ const renderContentWarning = (type: 'binary' | 'error') => (
       </p>
     </div>
   </div>
-);
+));
 
+/**
+ * Component to display when files are identical
+ */
 const NoChangesView = memo(
   ({
     beforeCode,
@@ -395,12 +632,372 @@ const NoChangesView = memo(
   ),
 );
 
-// Otimização do processamento de diferenças com memoização
-const useProcessChanges = (beforeCode: string, afterCode: string) => {
-  return useMemo(() => processChanges(beforeCode, afterCode), [beforeCode, afterCode]);
-};
+/**
+ * Button for navigating between changes
+ */
+const NavigationButton = memo(
+  ({ direction, onClick, disabled }: { direction: 'next' | 'prev'; onClick: () => void; disabled: boolean }) => (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`p-1 rounded text-bolt-elements-textTertiary ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-bolt-elements-background-depth-3 hover:text-bolt-elements-textPrimary'} transition-colors`}
+      title={direction === 'next' ? 'Next change' : 'Previous change'}
+      aria-label={direction === 'next' ? 'Next change' : 'Previous change'}
+    >
+      <div className={direction === 'next' ? 'i-ph:caret-down' : 'i-ph:caret-up'} />
+    </button>
+  ),
+);
 
-// Componente otimizado para renderização de linhas de código
+/**
+ * Component for navigation controls
+ */
+const DiffNavigation = memo(
+  ({ navigation, onNavigate }: { navigation: NavigationState; onNavigate: (direction: 'next' | 'prev') => void }) => {
+    const { currentIndex, changeIndices } = navigation;
+    const hasChanges = changeIndices.length > 0;
+    const currentPosition = hasChanges ? currentIndex + 1 : 0;
+    const totalChanges = changeIndices.length;
+
+    return (
+      <div className="flex items-center gap-1 ml-4 border-l border-bolt-elements-borderColor pl-4">
+        <NavigationButton
+          direction="prev"
+          onClick={() => onNavigate('prev')}
+          disabled={!hasChanges || currentIndex <= 0}
+        />
+
+        <span className="text-xs text-bolt-elements-textSecondary">
+          {hasChanges ? `${currentPosition}/${totalChanges}` : 'No changes'}
+        </span>
+
+        <NavigationButton
+          direction="next"
+          onClick={() => onNavigate('next')}
+          disabled={!hasChanges || currentIndex >= changeIndices.length - 1}
+        />
+      </div>
+    );
+  },
+);
+
+/**
+ * Component for displaying scroll markers to indicate changed lines
+ */
+const ScrollMarkers = memo(({ unifiedBlocks, totalHeight }: { unifiedBlocks: DiffBlock[]; totalHeight: number }) => {
+  // Apenas renderizar se houver altura suficiente
+  if (totalHeight <= 0) {
+    return null;
+  }
+
+  return (
+    <div className="absolute right-0 top-0 bottom-0 w-2 z-10 pointer-events-none">
+      {unifiedBlocks
+        .filter((block) => block.type !== 'unchanged')
+        .map((block, index) => {
+          const percentage = (block.lineNumber / unifiedBlocks.length) * 100;
+          const type = block.type === 'added' ? 'diff-scrollbar-marker-added' : 'diff-scrollbar-marker-removed';
+
+          return (
+            <div
+              key={`marker-${index}`}
+              className={`diff-scrollbar-marker ${type}`}
+              style={{
+                top: `${percentage}%`,
+                height: `${Math.max(2, totalHeight / unifiedBlocks.length)}px`,
+              }}
+            />
+          );
+        })}
+    </div>
+  );
+});
+
+/**
+ * Component for toggling high contrast mode
+ */
+const HighContrastToggle = memo(({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) => (
+  <button
+    onClick={onToggle}
+    className="ml-2 p-1 rounded hover:bg-bolt-elements-background-depth-3 text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary transition-colors diff-high-contrast-toggle"
+    title={enabled ? 'Disable high contrast mode' : 'Enable high contrast mode'}
+    aria-label={enabled ? 'Disable high contrast mode' : 'Enable high contrast mode'}
+  >
+    <div className={enabled ? 'i-ph-eye' : 'i-ph-eye-slash'} />
+  </button>
+));
+
+/**
+ * Component for displaying file information and statistics
+ */
+const FileInfo = memo(
+  ({
+    filename,
+    hasChanges,
+    onToggleFullscreen,
+    isFullscreen,
+    beforeCode,
+    afterCode,
+    highContrastEnabled,
+    onToggleHighContrast,
+  }: {
+    filename: string;
+    hasChanges: boolean;
+    onToggleFullscreen: () => void;
+    isFullscreen: boolean;
+    beforeCode: string;
+    afterCode: string;
+    highContrastEnabled: boolean;
+    onToggleHighContrast: () => void;
+  }) => {
+    // Calculate additions and deletions statistics
+    const { additions, deletions } = useMemo(() => {
+      if (!hasChanges) {
+        return { additions: 0, deletions: 0 };
+      }
+
+      return calculateDiffStats(beforeCode, afterCode);
+    }, [hasChanges, beforeCode, afterCode]);
+
+    const showStats = additions > 0 || deletions > 0;
+
+    // Determinar o tipo de arquivo para melhor exibição do ícone
+    const getFileIcon = () => {
+      const extension = filename.split('.').pop()?.toLowerCase();
+
+      switch (extension) {
+        case 'js':
+        case 'jsx':
+        case 'ts':
+        case 'tsx':
+          return 'i-ph:file-js';
+        case 'html':
+        case 'xml':
+          return 'i-ph:file-html';
+        case 'css':
+        case 'scss':
+        case 'sass':
+          return 'i-ph:file-css';
+        case 'json':
+          return 'i-ph:file-json';
+        case 'md':
+          return 'i-ph:file-text';
+        case 'py':
+          return 'i-ph:file-py';
+        default:
+          return 'i-ph:file';
+      }
+    };
+
+    return (
+      <div className="diff-file-info">
+        <div className={`${getFileIcon()} mr-2 h-4 w-4 shrink-0`} />
+        <span className="truncate">{filename}</span>
+        <span className="ml-auto shrink-0 flex items-center gap-2">
+          {hasChanges ? (
+            <>
+              {showStats && (
+                <div className="flex items-center gap-1 text-xs">
+                  {additions > 0 && <span className="text-green-700 dark:text-green-500">+{additions}</span>}
+                  {deletions > 0 && <span className="text-red-700 dark:text-red-500">-{deletions}</span>}
+                </div>
+              )}
+              <span className="text-yellow-600 dark:text-yellow-400">Modified</span>
+              <span className="text-bolt-elements-textTertiary text-xs">{new Date().toLocaleTimeString()}</span>
+            </>
+          ) : (
+            <span className="text-green-700 dark:text-green-400">No Changes</span>
+          )}
+          <HighContrastToggle enabled={highContrastEnabled} onToggle={onToggleHighContrast} />
+          <FullscreenButton onClick={onToggleFullscreen} isFullscreen={isFullscreen} />
+        </span>
+      </div>
+    );
+  },
+);
+
+/**
+ * Component for displaying a unified diff comparison
+ */
+const InlineDiffComparison = memo(({ beforeCode, afterCode, filename, language }: CodeComparisonProps) => {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [panelHeight, setPanelHeight] = useState(0);
+  const [highContrastEnabled, setHighContrastEnabled] = useState(false);
+  const diffPanelRef = useRef<HTMLDivElement>(null);
+  const highlighter = useHighlighter();
+  const theme = useStore(themeStore);
+
+  // Estado para navegação entre alterações
+  const [navigation, setNavigation] = useState<NavigationState>({
+    currentIndex: 0,
+    changeIndices: [],
+  });
+
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen((prev) => !prev);
+  }, []);
+
+  const toggleHighContrast = useCallback(() => {
+    setHighContrastEnabled((prev) => !prev);
+  }, []);
+
+  const { unifiedBlocks, hasChanges, isBinary, error } = useProcessChanges(beforeCode, afterCode);
+
+  // Calcular os índices das linhas alteradas para navegação
+  useEffect(() => {
+    if (hasChanges && unifiedBlocks.length > 0) {
+      const indices = unifiedBlocks
+        .map((block, index) => ({ index, type: block.type }))
+        .filter((item) => item.type !== 'unchanged')
+        .map((item) => item.index);
+
+      setNavigation({
+        currentIndex: indices.length > 0 ? 0 : -1,
+        changeIndices: indices,
+      });
+    } else {
+      setNavigation({
+        currentIndex: -1,
+        changeIndices: [],
+      });
+    }
+  }, [hasChanges, unifiedBlocks]);
+
+  // Navegar para a alteração anterior ou próxima
+  const handleNavigation = useCallback(
+    (direction: 'next' | 'prev') => {
+      if (navigation.changeIndices.length === 0) {
+        return;
+      }
+
+      setNavigation((prev) => {
+        const newIndex =
+          direction === 'next'
+            ? Math.min(prev.currentIndex + 1, prev.changeIndices.length - 1)
+            : Math.max(prev.currentIndex - 1, 0);
+
+        // Rolar para a alteração
+        const changeIndex = prev.changeIndices[newIndex];
+        const element = document.getElementById(`diff-line-${changeIndex}`);
+
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        return {
+          ...prev,
+          currentIndex: newIndex,
+        };
+      });
+    },
+    [navigation.changeIndices],
+  );
+
+  // Monitorar a altura do painel para posicionar os marcadores de rolagem
+  useEffect(() => {
+    if (diffPanelRef.current) {
+      setPanelHeight(diffPanelRef.current.clientHeight);
+
+      const resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          setPanelHeight(entry.contentRect.height);
+        }
+      });
+
+      resizeObserver.observe(diffPanelRef.current);
+
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }
+
+    return undefined;
+  }, []);
+
+  // Adicionar atalhos de teclado para navegação
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Alt+N para próxima alteração, Alt+P para alteração anterior
+      if (e.altKey && e.key === 'n') {
+        e.preventDefault();
+        handleNavigation('next');
+      } else if (e.altKey && e.key === 'p') {
+        e.preventDefault();
+        handleNavigation('prev');
+      }
+      // Alt+H para alternar o modo de alto contraste
+      else if (e.altKey && e.key === 'h') {
+        e.preventDefault();
+        toggleHighContrast();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleNavigation, toggleHighContrast]);
+
+  if (isBinary || error) {
+    return <ContentWarning type={isBinary ? 'binary' : 'error'} />;
+  }
+
+  return (
+    <FullscreenOverlay isFullscreen={isFullscreen}>
+      <div className={`w-full h-full flex flex-col ${highContrastEnabled ? 'diff-high-contrast' : ''}`}>
+        <div className="flex flex-col">
+          <FileInfo
+            filename={filename}
+            hasChanges={hasChanges}
+            onToggleFullscreen={toggleFullscreen}
+            isFullscreen={isFullscreen}
+            beforeCode={beforeCode}
+            afterCode={afterCode}
+            highContrastEnabled={highContrastEnabled}
+            onToggleHighContrast={toggleHighContrast}
+          />
+          {hasChanges && (
+            <div className="flex items-center justify-between bg-bolt-elements-background-depth-1 p-2 border-t border-bolt-elements-borderColor text-sm">
+              <span className="text-bolt-elements-textTertiary text-xs">
+                <span className="i-ph:keyboard hidden sm:inline-block mr-1" />
+                Navigation: <kbd className="diff-keyboard-shortcut">Alt+N</kbd> Next,
+                <kbd className="diff-keyboard-shortcut">Alt+P</kbd> Previous,
+                <kbd className="diff-keyboard-shortcut">Alt+H</kbd> High contrast
+              </span>
+              <DiffNavigation navigation={navigation} onNavigate={handleNavigation} />
+            </div>
+          )}
+        </div>
+        <div className={diffPanelStyles} ref={diffPanelRef}>
+          {hasChanges ? (
+            <div className="overflow-x-auto min-w-full relative">
+              {unifiedBlocks.map((block, index) => (
+                <CodeLine
+                  key={`${block.lineNumber}-${index}`}
+                  lineNumber={block.lineNumber}
+                  content={block.content}
+                  type={block.type}
+                  highlighter={highlighter}
+                  language={language}
+                  block={block}
+                  theme={theme}
+                  isHighlighted={index === navigation.changeIndices[navigation.currentIndex]}
+                  id={`diff-line-${index}`}
+                />
+              ))}
+              <ScrollMarkers unifiedBlocks={unifiedBlocks} totalHeight={panelHeight} />
+            </div>
+          ) : (
+            <NoChangesView beforeCode={beforeCode} language={language} highlighter={highlighter} theme={theme} />
+          )}
+        </div>
+      </div>
+    </FullscreenOverlay>
+  );
+});
+
+/**
+ * Component for rendering a single line of code with highlighting
+ */
 const CodeLine = memo(
   ({
     lineNumber,
@@ -410,6 +1007,8 @@ const CodeLine = memo(
     language,
     block,
     theme,
+    isHighlighted,
+    id,
   }: {
     lineNumber: number;
     content: string;
@@ -418,9 +1017,13 @@ const CodeLine = memo(
     language: string;
     block: DiffBlock;
     theme: string;
+    isHighlighted?: boolean;
+    id?: string;
   }) => {
     const bgColor = diffLineStyles[type];
+    const highlightedClass = isHighlighted ? 'highlighted' : '';
 
+    // Render content with appropriate highlighting
     const renderContent = () => {
       if (type === 'unchanged' || !block.charChanges) {
         const highlightedCode = highlighter
@@ -454,7 +1057,7 @@ const CodeLine = memo(
     };
 
     return (
-      <div className="flex group min-w-fit">
+      <div className={`diff-line ${highlightedClass}`} id={id}>
         <div className={lineNumberStyles}>{lineNumber + 1}</div>
         <div className={`${lineContentStyles} ${bgColor}`}>
           <span className="mr-2 text-bolt-elements-textTertiary">
@@ -469,248 +1072,17 @@ const CodeLine = memo(
   },
 );
 
-// Componente para exibir informações sobre o arquivo
-const FileInfo = memo(
-  ({
-    filename,
-    hasChanges,
-    onToggleFullscreen,
-    isFullscreen,
-    beforeCode,
-    afterCode,
-  }: {
-    filename: string;
-    hasChanges: boolean;
-    onToggleFullscreen: () => void;
-    isFullscreen: boolean;
-    beforeCode: string;
-    afterCode: string;
-  }) => {
-    // Calculate additions and deletions from the current document
-    const { additions, deletions } = useMemo(() => {
-      if (!hasChanges) {
-        return { additions: 0, deletions: 0 };
-      }
-
-      const changes = diffLines(beforeCode, afterCode, {
-        newlineIsToken: false,
-        ignoreWhitespace: true,
-        ignoreCase: false,
-      });
-
-      return changes.reduce(
-        (acc: { additions: number; deletions: number }, change: Change) => {
-          if (change.added) {
-            acc.additions += change.value.split('\n').length;
-          }
-
-          if (change.removed) {
-            acc.deletions += change.value.split('\n').length;
-          }
-
-          return acc;
-        },
-        { additions: 0, deletions: 0 },
-      );
-    }, [hasChanges, beforeCode, afterCode]);
-
-    const showStats = additions > 0 || deletions > 0;
-
-    return (
-      <div className="flex items-center bg-bolt-elements-background-depth-1 p-2 text-sm text-bolt-elements-textPrimary shrink-0">
-        <div className="i-ph:file mr-2 h-4 w-4 shrink-0" />
-        <span className="truncate">{filename}</span>
-        <span className="ml-auto shrink-0 flex items-center gap-2">
-          {hasChanges ? (
-            <>
-              {showStats && (
-                <div className="flex items-center gap-1 text-xs">
-                  {additions > 0 && <span className="text-green-700 dark:text-green-500">+{additions}</span>}
-                  {deletions > 0 && <span className="text-red-700 dark:text-red-500">-{deletions}</span>}
-                </div>
-              )}
-              <span className="text-yellow-600 dark:text-yellow-400">Modified</span>
-              <span className="text-bolt-elements-textTertiary text-xs">{new Date().toLocaleTimeString()}</span>
-            </>
-          ) : (
-            <span className="text-green-700 dark:text-green-400">No Changes</span>
-          )}
-          <FullscreenButton onClick={onToggleFullscreen} isFullscreen={isFullscreen} />
-        </span>
-      </div>
-    );
-  },
-);
-
-const InlineDiffComparison = memo(({ beforeCode, afterCode, filename, language }: CodeComparisonProps) => {
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [highlighter, setHighlighter] = useState<any>(null);
-  const theme = useStore(themeStore);
-
-  const toggleFullscreen = useCallback(() => {
-    setIsFullscreen((prev) => !prev);
-  }, []);
-
-  const { unifiedBlocks, hasChanges, isBinary, error } = useProcessChanges(beforeCode, afterCode);
-
-  useEffect(() => {
-    getHighlighter({
-      themes: ['github-dark', 'github-light'],
-      langs: [
-        'typescript',
-        'javascript',
-        'json',
-        'html',
-        'css',
-        'jsx',
-        'tsx',
-        'python',
-        'php',
-        'java',
-        'c',
-        'cpp',
-        'csharp',
-        'go',
-        'ruby',
-        'rust',
-        'plaintext',
-      ],
-    }).then(setHighlighter);
-  }, []);
-
-  if (isBinary || error) {
-    return renderContentWarning(isBinary ? 'binary' : 'error');
-  }
-
-  return (
-    <FullscreenOverlay isFullscreen={isFullscreen}>
-      <div className="w-full h-full flex flex-col">
-        <FileInfo
-          filename={filename}
-          hasChanges={hasChanges}
-          onToggleFullscreen={toggleFullscreen}
-          isFullscreen={isFullscreen}
-          beforeCode={beforeCode}
-          afterCode={afterCode}
-        />
-        <div className={diffPanelStyles}>
-          {hasChanges ? (
-            <div className="overflow-x-auto min-w-full">
-              {unifiedBlocks.map((block, index) => (
-                <CodeLine
-                  key={`${block.lineNumber}-${index}`}
-                  lineNumber={block.lineNumber}
-                  content={block.content}
-                  type={block.type}
-                  highlighter={highlighter}
-                  language={language}
-                  block={block}
-                  theme={theme}
-                />
-              ))}
-            </div>
-          ) : (
-            <NoChangesView beforeCode={beforeCode} language={language} highlighter={highlighter} theme={theme} />
-          )}
-        </div>
-      </div>
-    </FullscreenOverlay>
-  );
-});
-
-interface DiffViewProps {
-  fileHistory: Record<string, FileHistory>;
-  setFileHistory: React.Dispatch<React.SetStateAction<Record<string, FileHistory>>>;
-  actionRunner: ActionRunner;
-}
-
+/**
+ * Main DiffView component that ties everything together
+ */
 export const DiffView = memo(({ fileHistory, setFileHistory }: DiffViewProps) => {
   const files = useStore(workbenchStore.files) as FileMap;
   const selectedFile = useStore(workbenchStore.selectedFile);
   const currentDocument = useStore(workbenchStore.currentDocument) as EditorDocument;
   const unsavedFiles = useStore(workbenchStore.unsavedFiles);
 
-  useEffect(() => {
-    if (selectedFile && currentDocument) {
-      const file = files[selectedFile];
-
-      if (!file || !('content' in file)) {
-        return;
-      }
-
-      const existingHistory = fileHistory[selectedFile];
-      const currentContent = currentDocument.value;
-
-      // Normalizar o conteúdo para comparação
-      const normalizedCurrentContent = currentContent.replace(/\r\n/g, '\n').trim();
-      const normalizedOriginalContent = (existingHistory?.originalContent || file.content)
-        .replace(/\r\n/g, '\n')
-        .trim();
-
-      // Se não há histórico existente, criar um novo apenas se houver diferenças
-      if (!existingHistory) {
-        if (normalizedCurrentContent !== normalizedOriginalContent) {
-          const newChanges = diffLines(file.content, currentContent);
-          setFileHistory((prev) => ({
-            ...prev,
-            [selectedFile]: {
-              originalContent: file.content,
-              lastModified: Date.now(),
-              changes: newChanges,
-              versions: [
-                {
-                  timestamp: Date.now(),
-                  content: currentContent,
-                },
-              ],
-              changeSource: 'auto-save',
-            },
-          }));
-        }
-
-        return;
-      }
-
-      // Se já existe histórico, verificar se há mudanças reais desde a última versão
-      const lastVersion = existingHistory.versions[existingHistory.versions.length - 1];
-      const normalizedLastContent = lastVersion?.content.replace(/\r\n/g, '\n').trim();
-
-      if (normalizedCurrentContent === normalizedLastContent) {
-        return; // Não criar novo histórico se o conteúdo é o mesmo
-      }
-
-      // Verificar se há mudanças significativas usando diffFiles
-      const relativePath = extractRelativePath(selectedFile);
-      const unifiedDiff = diffFiles(relativePath, existingHistory.originalContent, currentContent);
-
-      if (unifiedDiff) {
-        const newChanges = diffLines(existingHistory.originalContent, currentContent);
-
-        // Verificar se as mudanças são significativas
-        const hasSignificantChanges = newChanges.some(
-          (change) => (change.added || change.removed) && change.value.trim().length > 0,
-        );
-
-        if (hasSignificantChanges) {
-          const newHistory: FileHistory = {
-            originalContent: existingHistory.originalContent,
-            lastModified: Date.now(),
-            changes: [...existingHistory.changes, ...newChanges].slice(-100), // Limitar histórico de mudanças
-            versions: [
-              ...existingHistory.versions,
-              {
-                timestamp: Date.now(),
-                content: currentContent,
-              },
-            ].slice(-10), // Manter apenas as 10 últimas versões
-            changeSource: 'auto-save',
-          };
-
-          setFileHistory((prev) => ({ ...prev, [selectedFile]: newHistory }));
-        }
-      }
-    }
-  }, [selectedFile, currentDocument?.value, files, setFileHistory, unsavedFiles]);
+  // Track file history changes
+  useFileHistoryTracking(selectedFile, currentDocument, files, fileHistory, setFileHistory, unsavedFiles);
 
   if (!selectedFile || !currentDocument) {
     return (
