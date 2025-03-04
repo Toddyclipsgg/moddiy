@@ -14,6 +14,7 @@ import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
 import { classNames } from '~/utils/classNames';
 import { useStore } from '@nanostores/react';
 import { profileStore } from '~/lib/stores/profile';
+import { signOut, updateAuthModal } from '~/lib/stores/auth';
 
 const menuVariants = {
   closed: {
@@ -173,25 +174,7 @@ export const Menu = () => {
         )}
       >
         <div className="h-12 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-800/50 bg-gray-50/50 dark:bg-gray-900/50">
-          <div className="text-gray-900 dark:text-white font-medium"></div>
-          <div className="flex items-center gap-3">
-            <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
-              {profile?.username || 'Guest User'}
-            </span>
-            <div className="flex items-center justify-center w-[32px] h-[32px] overflow-hidden bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-500 rounded-full shrink-0">
-              {profile?.avatar ? (
-                <img
-                  src={profile.avatar}
-                  alt={profile?.username || 'User'}
-                  className="w-full h-full object-cover"
-                  loading="eager"
-                  decoding="sync"
-                />
-              ) : (
-                <div className="i-ph:user-fill text-lg" />
-              )}
-            </div>
-          </div>
+          {/* Removendo o perfil duplicado do cabeçalho */}
         </div>
         <CurrentDateTime />
         <div className="flex-1 flex flex-col h-full w-full overflow-hidden">
@@ -278,7 +261,55 @@ export const Menu = () => {
           </div>
           <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-800 px-4 py-3">
             <SettingsButton onClick={handleSettingsClick} />
-            <ThemeSwitch />
+            <div className="flex items-center gap-3">
+              {(!profile?.username || profile?.username === 'Guest User') ? (
+                <button
+                  onClick={() => updateAuthModal({ isOpen: true, type: 'signin' })}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-500/10 hover:bg-purple-100 dark:hover:bg-purple-500/20 rounded-full transition-colors"
+                >
+                  <div className="i-ph:sign-in w-3.5 h-3.5" />
+                  Login
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                    {profile.username}
+                  </span>
+                  <div className="w-6 h-6 rounded-full overflow-hidden bg-white dark:bg-gray-800 flex items-center justify-center">
+                    {profile.avatar ? (
+                      <img
+                        src={profile.avatar}
+                        alt={profile.username}
+                        className="w-full h-full object-cover"
+                        loading="eager"
+                        decoding="sync"
+                      />
+                    ) : (
+                      <div className="i-ph:user-fill text-base text-gray-400 dark:text-gray-500" />
+                    )}
+                  </div>
+                  <button
+                    onClick={async () => {
+                      await signOut();
+                      // Redirect to home page after signOut
+                      window.location.href = '/';
+                    }}
+                    className={classNames(
+                      'inline-flex items-center justify-center w-6 h-6 rounded-full',
+                      'bg-gray-50 dark:bg-gray-800',
+                      'hover:bg-gray-100 dark:hover:bg-gray-700',
+                      'text-gray-500 dark:text-gray-400',
+                      'hover:text-gray-600 dark:hover:text-gray-300',
+                      'transition-all duration-200'
+                    )}
+                    title="Logout"
+                  >
+                    <div className="i-ph:sign-out text-base" />
+                  </button>
+                </div>
+              )}
+              <ThemeSwitch />
+            </div>
           </div>
         </div>
       </motion.div>
