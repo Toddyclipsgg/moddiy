@@ -125,17 +125,31 @@ export default function DataTab() {
           return;
         }
 
+        // Skip base URL fields (they should be set in .env.local)
+        if (key.includes('_API_BASE_URL')) {
+          return;
+        }
+
         if (typeof value !== 'string') {
           throw new Error(`Invalid value for key: ${key}`);
         }
 
+        // Handle both old and new template formats
+        let normalizedKey = key;
+
+        // Check if this is the old format (e.g., "Anthropic_API_KEY")
+        if (key.includes('_API_KEY')) {
+          // Extract the provider name from the old format
+          normalizedKey = key.replace('_API_KEY', '');
+        }
+
         /*
          * Only add non-empty keys
-         * Use the key directly as it's already in the correct format
+         * Use the normalized key in the correct format
          * (e.g., "OpenAI", "Google", "Anthropic")
          */
         if (value) {
-          newKeys[key] = value;
+          newKeys[normalizedKey] = value;
         }
       });
 
@@ -186,7 +200,7 @@ export default function DataTab() {
       // Add a comment to explain the format
       const templateWithComment = {
         _comment:
-          "Fill in your API keys for each provider. Keys will be stored with the provider name (e.g., 'OpenAI').",
+          "Fill in your API keys for each provider. Keys will be stored with the provider name (e.g., 'OpenAI'). The application also supports the older format with keys like 'OpenAI_API_KEY' for backward compatibility.",
         ...template,
       };
 
