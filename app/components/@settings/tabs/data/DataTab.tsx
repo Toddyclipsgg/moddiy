@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { DialogRoot, DialogClose, Dialog, DialogTitle } from '~/components/ui/Dialog';
 import { db, getAll, deleteById } from '~/lib/persistence';
+import Cookies from 'js-cookie';
 
 export default function DataTab() {
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
@@ -110,16 +111,41 @@ export default function DataTab() {
       const content = await file.text();
       const keys = JSON.parse(content);
 
+      // Get existing keys from cookies
+      const existingKeys = (() => {
+        const storedApiKeys = Cookies.get('apiKeys');
+        return storedApiKeys ? JSON.parse(storedApiKeys) : {};
+      })();
+
       // Validate and save each key
+      const newKeys = { ...existingKeys };
       Object.entries(keys).forEach(([key, value]) => {
+        // Skip comment fields
+        if (key.startsWith('_')) {
+          return;
+        }
+
         if (typeof value !== 'string') {
           throw new Error(`Invalid value for key: ${key}`);
         }
 
-        localStorage.setItem(`bolt_${key.toLowerCase()}`, value);
+        /*
+         * Only add non-empty keys
+         * Use the key directly as it's already in the correct format
+         * (e.g., "OpenAI", "Google", "Anthropic")
+         */
+        if (value) {
+          newKeys[key] = value;
+        }
       });
 
+      // Save to cookies
+      Cookies.set('apiKeys', JSON.stringify(newKeys));
+
       toast.success('API keys imported successfully');
+
+      // Reload the page to apply the changes
+      window.location.reload();
     } catch (error) {
       console.error('Error importing API keys:', error);
       toast.error('Failed to import API keys');
@@ -136,28 +162,35 @@ export default function DataTab() {
     setIsDownloadingTemplate(true);
 
     try {
+      /*
+       * Create a template with provider names as keys
+       * This matches how the application stores API keys in cookies
+       */
       const template = {
-        Anthropic_API_KEY: '',
-        OpenAI_API_KEY: '',
-        Google_API_KEY: '',
-        Groq_API_KEY: '',
-        HuggingFace_API_KEY: '',
-        OpenRouter_API_KEY: '',
-        Deepseek_API_KEY: '',
-        Mistral_API_KEY: '',
-        OpenAILike_API_KEY: '',
-        Together_API_KEY: '',
-        xAI_API_KEY: '',
-        Perplexity_API_KEY: '',
-        Cohere_API_KEY: '',
-        AzureOpenAI_API_KEY: '',
-        OPENAI_LIKE_API_BASE_URL: '',
-        LMSTUDIO_API_BASE_URL: '',
-        OLLAMA_API_BASE_URL: '',
-        TOGETHER_API_BASE_URL: '',
+        Anthropic: '',
+        OpenAI: '',
+        Google: '',
+        Groq: '',
+        HuggingFace: '',
+        OpenRouter: '',
+        Deepseek: '',
+        Mistral: '',
+        OpenAILike: '',
+        Together: '',
+        xAI: '',
+        Perplexity: '',
+        Cohere: '',
+        AzureOpenAI: '',
       };
 
-      const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
+      // Add a comment to explain the format
+      const templateWithComment = {
+        _comment:
+          "Fill in your API keys for each provider. Keys will be stored with the provider name (e.g., 'OpenAI').",
+        ...template,
+      };
+
+      const blob = new Blob([JSON.stringify(templateWithComment, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
