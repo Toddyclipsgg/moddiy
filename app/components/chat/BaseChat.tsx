@@ -36,6 +36,8 @@ import ProgressCompilation from './ProgressCompilation';
 import type { ProgressAnnotation } from '~/types/context';
 import type { ActionRunner } from '~/lib/runtime/action-runner';
 import { LOCAL_PROVIDERS } from '~/lib/stores/settings';
+import { alertService } from '~/lib/services/alertService';
+import { useStore } from '@nanostores/react';
 
 const TEXTAREA_MIN_HEIGHT = 76;
 
@@ -67,8 +69,8 @@ interface BaseChatProps {
   setUploadedFiles?: (files: File[]) => void;
   imageDataList?: string[];
   setImageDataList?: (dataList: string[]) => void;
-  actionAlert?: ActionAlert;
-  clearAlert?: () => void;
+  actionAlerts?: ActionAlert[];
+  clearAlert?: (alertId?: string) => void;
   data?: JSONValue[] | undefined;
   actionRunner?: ActionRunner;
 }
@@ -103,7 +105,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       imageDataList = [],
       setImageDataList,
       messages,
-      actionAlert,
+      actionAlerts,
       clearAlert,
       data,
       actionRunner,
@@ -119,6 +121,9 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     const [transcript, setTranscript] = useState('');
     const [isModelLoading, setIsModelLoading] = useState<string | undefined>('all');
     const [progressAnnotations, setProgressAnnotations] = useState<ProgressAnnotation[]>([]);
+    const storeAlerts = useStore(alertService.activeAlerts);
+    const alerts = actionAlerts || storeAlerts;
+
     useEffect(() => {
       if (data) {
         const progressList = data.filter(
@@ -349,13 +354,22 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                 })}
               >
                 <div className="bg-bolt-elements-background-depth-2">
-                  {actionAlert && (
+                  {alerts && alerts.length > 0 && (
                     <ChatAlert
-                      alert={actionAlert}
-                      clearAlert={() => clearAlert?.()}
+                      alerts={alerts}
+                      clearAlert={(alertId) => clearAlert?.(alertId)}
                       postMessage={(message) => {
                         sendMessage?.({} as any, message);
-                        clearAlert?.();
+
+                        if (message.includes('Fix this')) {
+                          const alertId = message.includes('preview')
+                            ? alerts.find((a) => a.source === 'preview')?.id
+                            : alerts.find((a) => a.source === 'terminal')?.id;
+
+                          if (alertId) {
+                            clearAlert?.(alertId);
+                          }
+                        }
                       }}
                     />
                   )}

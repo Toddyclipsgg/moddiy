@@ -57,7 +57,7 @@
     "@headlessui/react": "^2.2.0",
     "@iconify-json/svg-spinners": "^1.2.1",
     "@lezer/highlight": "^1.2.1",
-    "@nanostores/react": "^0.7.3",
+    "@nanostores/react": "^0.8.4",
     "@octokit/rest": "^21.0.2",
     "@octokit/types": "^13.6.2",
     "@openrouter/ai-sdk-provider": "^0.0.5",
@@ -104,7 +104,7 @@
     "js-cookie": "^3.0.5",
     "jspdf": "^2.5.2",
     "jszip": "^3.10.1",
-    "nanostores": "^0.10.3",
+    "nanostores": "^0.11.4",
     "ollama-ai-provider": "^0.15.2",
     "path-browserify": "^1.0.1",
     "react": "^18.3.1",
@@ -126,6 +126,7 @@
     "shiki": "^1.24.0",
     "tailwind-merge": "^2.2.1",
     "unist-util-visit": "^5.0.0",
+    "uuid": "^11.1.0",
     "zustand": "^5.0.3"
   },
   "devDependencies": {
@@ -143,6 +144,7 @@
     "@types/path-browserify": "^1.0.3",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.3.4",
     "fast-glob": "^3.3.2",
     "husky": "9.1.7",

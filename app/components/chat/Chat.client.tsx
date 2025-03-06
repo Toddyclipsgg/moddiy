@@ -26,6 +26,7 @@ import { getTemplates, selectStarterTemplate } from '~/utils/selectStarterTempla
 import { logStore } from '~/lib/stores/logs';
 import { streamingState } from '~/lib/stores/streaming';
 import { filesToArtifacts } from '~/utils/fileUtils';
+import { alertService } from '~/lib/services/alertService';
 
 const toastAnimation = cssTransition({
   enter: 'animated fadeInRight',
@@ -122,7 +123,7 @@ export const ChatImpl = memo(
     const [searchParams, setSearchParams] = useSearchParams();
     const [fakeLoading, setFakeLoading] = useState(false);
     const files = useStore(workbenchStore.files);
-    const actionAlert = useStore(workbenchStore.alert);
+    const actionAlerts = useStore(alertService.activeAlerts);
     const { activeProviders, promptId, autoSelectTemplate, contextOptimizationEnabled } = useSettings();
 
     const [model, setModel] = useState(() => {
@@ -515,8 +516,8 @@ export const ChatImpl = memo(
         setUploadedFiles={setUploadedFiles}
         imageDataList={imageDataList}
         setImageDataList={setImageDataList}
-        actionAlert={actionAlert}
-        clearAlert={() => workbenchStore.clearAlert()}
+        actionAlerts={actionAlerts}
+        clearAlert={(alertId) => alertService.clearAlert(alertId)}
         data={chatData}
       />
     );

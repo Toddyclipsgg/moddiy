@@ -28,11 +28,17 @@ export type BoltAction = FileAction | ShellAction | StartAction | BuildAction;
 export type BoltActionData = BoltAction | BaseAction;
 
 export interface ActionAlert {
+  id: string; // Unique identifier for tracking alerts
   type: string;
   title: string;
   description: string;
   content: string;
-  source?: 'terminal' | 'preview'; // Add source to differentiate between terminal and preview errors
+  source?: 'terminal' | 'preview' | 'system'; // Added 'system' for general errors
+  severity: 'info' | 'warning' | 'error' | 'critical'; // Alert severity level
+  timestamp: number; // When the alert was created
+  metadata?: Record<string, any>; // Optional additional data for debugging
+  actionable?: boolean; // Whether user can take action on this alert
+  suggestedAction?: string; // Optional suggested action in natural language
 }
 
 export interface FileHistory {

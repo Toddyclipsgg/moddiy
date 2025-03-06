@@ -1,11 +1,13 @@
 import type { WebContainer } from '@webcontainer/api';
 import { path as nodePath } from '~/utils/path';
 import { atom, map, type MapStore } from 'nanostores';
-import type { ActionAlert, BoltAction, FileHistory } from '~/types/actions';
+import type { BoltAction, FileHistory } from '~/types/actions';
 import { createScopedLogger } from '~/utils/logger';
 import { unreachable } from '~/utils/unreachable';
 import type { ActionCallbackData } from './message-parser';
 import type { BoltShell } from '~/utils/shell';
+import { alertService } from '~/lib/services/alertService';
+import { formatErrorForDisplay } from '~/utils/error-formatter';
 
 const logger = createScopedLogger('ActionRunner');
 
@@ -37,6 +39,7 @@ type ActionsMap = MapStore<Record<string, ActionState>>;
 class ActionCommandError extends Error {
   readonly _output: string;
   readonly _header: string;
+  readonly _formattedError: ReturnType<typeof formatErrorForDisplay>;
 
   constructor(message: string, output: string) {
     // Create a formatted message that includes both the error message and output
@@ -46,6 +49,9 @@ class ActionCommandError extends Error {
     // Set the output separately so it can be accessed programmatically
     this._header = message;
     this._output = output;
+
+    // Format the error for better display
+    this._formattedError = formatErrorForDisplay(output);
 
     // Maintain proper prototype chain
     Object.setPrototypeOf(this, ActionCommandError.prototype);
@@ -58,8 +64,13 @@ class ActionCommandError extends Error {
   get output() {
     return this._output;
   }
+
   get header() {
     return this._header;
+  }
+
+  get formattedError() {
+    return this._formattedError;
   }
 }
 
@@ -69,17 +80,11 @@ export class ActionRunner {
   #shellTerminal: () => BoltShell;
   runnerId = atom<string>(`${Date.now()}`);
   actions: ActionsMap = map({});
-  onAlert?: (alert: ActionAlert) => void;
   buildOutput?: { path: string; exitCode: number; output: string };
 
-  constructor(
-    webcontainerPromise: Promise<WebContainer>,
-    getShellTerminal: () => BoltShell,
-    onAlert?: (alert: ActionAlert) => void,
-  ) {
+  constructor(webcontainerPromise: Promise<WebContainer>, getShellTerminal: () => BoltShell) {
     this.#webcontainer = webcontainerPromise;
     this.#shellTerminal = getShellTerminal;
-    this.onAlert = onAlert;
   }
 
   addAction(data: ActionCallbackData) {
@@ -181,11 +186,14 @@ export class ActionRunner {
                 return;
               }
 
-              this.onAlert?.({
+              alertService.createAlert({
                 type: 'error',
-                title: 'Dev Server Failed',
-                description: err.header,
-                content: err.output,
+                title: err.formattedError.formattedTitle || 'Dev Server Failed',
+                description: err.formattedError.formattedDescription,
+                content: err.formattedError.formattedContent,
+                source: 'preview',
+                severity: 'error',
+                suggestedAction: err.formattedError.suggestion,
               });
             });
 
@@ -214,11 +222,14 @@ export class ActionRunner {
         return;
       }
 
-      this.onAlert?.({
+      alertService.createAlert({
         type: 'error',
-        title: 'Dev Server Failed',
-        description: error.header,
-        content: error.output,
+        title: error.formattedError.formattedTitle || 'Dev Server Failed',
+        description: error.formattedError.formattedDescription,
+        content: error.formattedError.formattedContent,
+        source: 'preview',
+        severity: 'error',
+        suggestedAction: error.formattedError.suggestion,
       });
 
       // re-throw the error to be caught in the promise chain

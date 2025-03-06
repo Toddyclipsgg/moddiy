@@ -17,7 +17,7 @@ import { extractRelativePath } from '~/utils/diff';
 import { description } from '~/lib/persistence';
 import Cookies from 'js-cookie';
 import { createSampler } from '~/utils/sampler';
-import type { ActionAlert } from '~/types/actions';
+import { alertService } from '~/lib/services/alertService';
 
 const { saveAs } = fileSaver;
 
@@ -48,8 +48,6 @@ export class WorkbenchStore {
   showWorkbench: WritableAtom<boolean> = import.meta.hot?.data.showWorkbench ?? atom(false);
   currentView: WritableAtom<WorkbenchViewType> = import.meta.hot?.data.currentView ?? atom('code');
   unsavedFiles: WritableAtom<Set<string>> = import.meta.hot?.data.unsavedFiles ?? atom(new Set<string>());
-  actionAlert: WritableAtom<ActionAlert | undefined> =
-    import.meta.hot?.data.unsavedFiles ?? atom<ActionAlert | undefined>(undefined);
   modifiedFiles = new Set<string>();
   artifactIdList: string[] = [];
   #globalExecutionQueue = Promise.resolve();
@@ -59,7 +57,6 @@ export class WorkbenchStore {
       import.meta.hot.data.unsavedFiles = this.unsavedFiles;
       import.meta.hot.data.showWorkbench = this.showWorkbench;
       import.meta.hot.data.currentView = this.currentView;
-      import.meta.hot.data.actionAlert = this.actionAlert;
     }
   }
 
@@ -97,11 +94,14 @@ export class WorkbenchStore {
   get boltTerminal() {
     return this.#terminalStore.boltTerminal;
   }
-  get alert() {
-    return this.actionAlert;
+  get alerts() {
+    return alertService.activeAlerts;
   }
-  clearAlert() {
-    this.actionAlert.set(undefined);
+  get alert() {
+    return alertService.currentAlert;
+  }
+  clearAlert(alertId?: string) {
+    alertService.clearAlert(alertId);
   }
 
   toggleTerminal(value?: boolean) {
@@ -270,17 +270,7 @@ export class WorkbenchStore {
       title,
       closed: false,
       type,
-      runner: new ActionRunner(
-        webcontainer,
-        () => this.boltTerminal,
-        (alert) => {
-          if (this.#reloadedMessages.has(messageId)) {
-            return;
-          }
-
-          this.actionAlert.set(alert);
-        },
-      ),
+      runner: new ActionRunner(webcontainer, () => this.boltTerminal),
     });
   }
 
@@ -541,7 +531,7 @@ export class WorkbenchStore {
         sha: newCommit.sha,
       });
 
-      alert(`Repository created and code pushed: ${repo.html_url}`);
+      alertService.createSystemAlert('GitHub Success', `Repository created and code pushed: ${repo.html_url}`, 'info');
     } catch (error) {
       console.error('Error pushing to GitHub:', error);
       throw error; // Rethrow the error for further handling
