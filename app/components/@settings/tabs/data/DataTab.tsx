@@ -683,31 +683,88 @@ export default function DataTab() {
     setIsResetting(true);
 
     try {
-      // Clear all stored settings from localStorage
-      localStorage.removeItem('bolt_user_profile');
-      localStorage.removeItem('bolt_settings');
-      localStorage.removeItem('bolt_chat_history');
+      console.log('Starting complete settings reset');
 
-      // Clear all data from IndexedDB
+      // 1. Clear all localStorage items related to application settings
+      const localStorageKeysToPreserve: string[] = ['debug_mode']; // Keys to preserve if needed
+
+      // Get all localStorage keys
+      const allLocalStorageKeys = Object.keys(localStorage);
+      console.log('Clearing localStorage items:', allLocalStorageKeys.length, 'items found');
+
+      // Clear all localStorage items except those to preserve
+      allLocalStorageKeys.forEach((key) => {
+        if (!localStorageKeysToPreserve.includes(key)) {
+          try {
+            console.log(`Removing localStorage item: ${key}`);
+            localStorage.removeItem(key);
+          } catch (err) {
+            console.error(`Error removing localStorage item ${key}:`, err);
+          }
+        }
+      });
+
+      // 2. Clear all cookies related to application settings
+      const cookiesToPreserve: string[] = []; // Cookies to preserve if needed
+
+      // Get all cookies
+      const allCookies = Cookies.get();
+      const cookieKeys = Object.keys(allCookies);
+      console.log('Clearing cookies:', cookieKeys.length, 'items found');
+
+      // Clear all cookies except those to preserve
+      cookieKeys.forEach((key) => {
+        if (!cookiesToPreserve.includes(key)) {
+          try {
+            console.log(`Removing cookie: ${key}`);
+            Cookies.remove(key);
+          } catch (err) {
+            console.error(`Error removing cookie ${key}:`, err);
+          }
+        }
+      });
+
+      // 3. Clear all data from IndexedDB
       if (!db) {
-        throw new Error('Database not initialized');
+        console.warn('Database not initialized, skipping IndexedDB reset');
+      } else {
+        console.log('Clearing IndexedDB data');
+
+        // Get all chats and delete them
+        const chats = await getAll(db as IDBDatabase);
+        console.log(`Deleting ${chats.length} chats from IndexedDB`);
+
+        const deletePromises = chats.map((chat) => deleteById(db as IDBDatabase, chat.id));
+        await Promise.all(deletePromises);
       }
 
-      // Get all chats and delete them
-      const chats = await getAll(db as IDBDatabase);
-      const deletePromises = chats.map((chat) => deleteById(db as IDBDatabase, chat.id));
-      await Promise.all(deletePromises);
+      // 4. Clear any chat snapshots
+      const snapshotKeys = Object.keys(localStorage).filter((key) => key.startsWith('snapshot:'));
+      console.log(`Clearing ${snapshotKeys.length} chat snapshots`);
+      snapshotKeys.forEach((key) => {
+        try {
+          localStorage.removeItem(key);
+        } catch (err) {
+          console.error(`Error removing snapshot ${key}:`, err);
+        }
+      });
+
+      console.log('Settings reset completed successfully');
 
       // Close the dialog first
       setShowResetInlineConfirm(false);
 
-      // Then reload and show success message
-      window.location.reload();
-      toast.success('Settings reset successfully');
+      // Show success message and reload
+      toast.success('All settings have been reset to default values');
+
+      // Use setTimeout to ensure the toast is shown before reload
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     } catch (error) {
       console.error('Reset error:', error);
       setShowResetInlineConfirm(false);
-      toast.error('Failed to reset settings');
+      toast.error('Failed to reset settings: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsResetting(false);
     }
