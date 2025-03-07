@@ -1,4 +1,9 @@
 import JSZip from 'jszip';
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
+import type { PDFDocumentProxy } from 'pdfjs-dist';
+
+// Import the worker as a virtual URL from Vite
+const pdfjsWorkerUrl = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).href;
 
 /*
  * Flag to use only fallback method
@@ -199,18 +204,163 @@ async function extractPdfTextSimple(file: File | Blob): Promise<string> {
   }
 }
 
+// Configure o worker (compatível com Vite)
+if (typeof window !== 'undefined') {
+  GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
+}
+
+// Cache for PDF documents to improve performance
+const pdfCache = new Map<string, Promise<PDFDocumentProxy>>();
+
 /**
- * Extracts text from a PDF file using a simplified method
- * that doesn't depend on the pdfjs-dist library
+ * Extracts text from a PDF file using pdfjs-dist with optimizations
  *
  * @param file The PDF file
  * @returns A Promise with the extracted text
  */
 export async function extractTextFromPDF(file: File | Blob): Promise<string> {
-  console.log('Extracting text from PDF using simplified method');
+  try {
+    console.log('Extracting text from PDF using pdfjs-dist');
 
-  // Use the simplified method that doesn't depend on external libraries
-  return extractPdfTextSimple(file);
+    // Generate a unique key for the file cache
+    const cacheKey = file instanceof File ? file.name + file.lastModified : Math.random().toString();
+
+    // Convert the file to ArrayBuffer
+    const arrayBuffer = await file.arrayBuffer();
+
+    // Use cached PDF document if available
+    let pdfDocument: PDFDocumentProxy;
+
+    if (pdfCache.has(cacheKey)) {
+      pdfDocument = await pdfCache.get(cacheKey)!;
+    } else {
+      const loadingTask = getDocument({
+        data: arrayBuffer,
+        disableFontFace: true, // Reduces memory usage
+        /*
+         * No need for cMapUrl when using built-in cmaps
+         * cMapUrl: '/assets/cmaps/',
+         * cMapPacked: true,
+         */
+      });
+
+      const documentPromise = loadingTask.promise;
+      pdfCache.set(cacheKey, documentPromise);
+      pdfDocument = await documentPromise;
+    }
+
+    const numPages = pdfDocument.numPages;
+    console.log(`PDF has ${numPages} pages`);
+
+    // For very large PDFs, we might want to process pages in batches
+    const isLargeDocument = numPages > 100;
+    const fullText: string[] = [];
+
+    // Process pages either in sequence or in batches
+    if (isLargeDocument) {
+      // Process large documents in batches to reduce memory usage
+      const batchSize = 10;
+
+      for (let i = 0; i < numPages; i += batchSize) {
+        const batch = [];
+
+        for (let j = 0; j < batchSize && i + j < numPages; j++) {
+          batch.push(extractPageText(pdfDocument, i + j + 1));
+        }
+
+        const batchResults = await Promise.all(batch);
+        fullText.push(...batchResults);
+      }
+    } else {
+      // For smaller documents, process all pages in parallel
+      const textPromises = [];
+
+      for (let i = 1; i <= numPages; i++) {
+        textPromises.push(extractPageText(pdfDocument, i));
+      }
+
+      const pageTexts = await Promise.all(textPromises);
+      fullText.push(...pageTexts);
+    }
+
+    return fullText.join('\n\n');
+  } catch (error) {
+    console.error('Error extracting text from PDF with pdfjs:', error);
+
+    // Fall back to the simplified method if the main method fails
+    console.log('Falling back to simplified PDF extraction method');
+
+    return extractPdfTextSimple(file);
+  }
+}
+
+/**
+ * Helper function to extract text from a single PDF page
+ */
+async function extractPageText(pdfDocument: PDFDocumentProxy, pageNum: number): Promise<string> {
+  try {
+    const page = await pdfDocument.getPage(pageNum);
+    const textContent = await page.getTextContent();
+
+    // Process the text content to maintain some formatting
+    const text = processTextContent(textContent);
+
+    // Clean up page resources to reduce memory usage
+    page.cleanup();
+
+    return text;
+  } catch (error) {
+    console.error(`Error extracting text from page ${pageNum}:`, error);
+    return `[Failed to extract text from page ${pageNum}]`;
+  }
+}
+
+/**
+ * Process text content from a PDF page to maintain formatting
+ */
+function processTextContent(textContent: any): string {
+  const textItems = textContent.items;
+  const lines: { text: string; y: number }[] = [];
+  let lastY: number | null = null;
+  let currentLine = '';
+
+  // Group text by vertical position (y-coordinate) to maintain line breaks
+  for (const item of textItems) {
+    // Skip items without string content
+    if (!item.str || typeof item.str !== 'string') {
+      continue;
+    }
+
+    const text = item.str;
+    const transform = item.transform || [0, 0, 0, 0, 0, 0];
+    const y = transform[5];
+
+    // If this is a new line (different y-coordinate)
+    if (lastY !== null && Math.abs(y - lastY) > 1) {
+      lines.push({ text: currentLine, y: lastY });
+      currentLine = text;
+    } else {
+      // Same line, append text with proper spacing
+      if (currentLine && text && !currentLine.endsWith(' ') && !text.startsWith(' ')) {
+        currentLine += ' ';
+      }
+
+      currentLine += text;
+    }
+
+    lastY = y;
+  }
+
+  // Add the last line
+  if (currentLine) {
+    lines.push({ text: currentLine, y: lastY || 0 });
+  }
+
+  // Sort lines by y-coordinate in descending order (top to bottom)
+  lines.sort((a, b) => b.y - a.y);
+
+  // Join lines with newlines
+  return lines.map((line) => line.text).join('\n');
 }
 
 /**

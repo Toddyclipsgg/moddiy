@@ -43,7 +43,7 @@ const TEXTAREA_MIN_HEIGHT = 76;
  * Flag to use only fallback method
  * const USE_ONLY_FALLBACK = true;
  */
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
 interface BaseChatProps {
   textareaRef?: React.RefObject<HTMLTextAreaElement> | undefined;
@@ -337,28 +337,88 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
     // Function to process image files
     const processImageFile = (file: File, _index: number) => {
-      const reader = new FileReader();
+      // Handle image files for display
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
 
-      reader.onload = (e) => {
-        if (setImageDataList) {
-          const result = (e.target?.result as string) || 'non-image';
-          const newImageDataList = [...imageDataList];
-          newImageDataList[_index] = result;
-          setImageDataList(newImageDataList);
-        }
-      };
+        reader.onload = (e) => {
+          if (e.target && e.target.result && setImageDataList) {
+            setImageDataList([...imageDataList, e.target.result as string]);
+          }
+        };
+        reader.readAsDataURL(file);
 
-      reader.onerror = () => {
-        console.error('Error reading file:', file.name);
+        toast.info(
+          <div>
+            <div className="font-bold">Image attached:</div>
+            <div className="text-xs text-gray-200 bg-gray-800 p-2 mt-1 rounded">
+              {file.name} ({Math.round(file.size / 1024)} KB)
+            </div>
+          </div>,
+          { autoClose: 3000 },
+        );
+      } else if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        // Special handling for PDF files
+        const fileSize = Math.round(file.size / 1024);
+        const isLargePdf = fileSize > 5000; // 5MB threshold
 
-        if (setImageDataList) {
-          const newImageDataList = [...imageDataList];
-          newImageDataList[_index] = 'non-image';
-          setImageDataList(newImageDataList);
-        }
-      };
+        const toastId = toast.info(
+          <div>
+            <div className="font-bold">PDF attached:</div>
+            <div className="text-xs text-gray-200 bg-gray-800 p-2 mt-1 rounded">
+              {file.name} ({fileSize} KB){isLargePdf ? ' - Large file, processing may take longer' : ''}
+            </div>
+            <div className="mt-2">
+              <div className="w-full bg-gray-700 rounded-full h-2.5 mb-1">
+                <div className="bg-blue-600 h-2.5 rounded-full w-1/4"></div>
+              </div>
+              <div className="text-xs text-gray-400">Extracting text...</div>
+            </div>
+          </div>,
+          { autoClose: false },
+        );
 
-      reader.readAsDataURL(file);
+        // Process the PDF file asynchronously
+        import('~/utils/documentUtils').then(async ({ extractTextFromDocument }) => {
+          try {
+            await extractTextFromDocument(file);
+
+            // Update toast with success message
+            toast.update(toastId, {
+              render: (
+                <div>
+                  <div className="font-bold">PDF processed successfully:</div>
+                  <div className="text-xs text-gray-200 bg-gray-800 p-2 mt-1 rounded">
+                    {file.name} ({fileSize} KB)
+                  </div>
+                  <div className="mt-1 text-xs text-green-400">Text extracted and ready to send</div>
+                </div>
+              ),
+              autoClose: 3000,
+              type: 'success',
+            });
+          } catch (error) {
+            console.error('Error processing PDF:', error);
+
+            // Update toast with error message
+            toast.update(toastId, {
+              render: (
+                <div>
+                  <div className="font-bold">Error processing PDF:</div>
+                  <div className="text-xs text-gray-200 bg-gray-800 p-2 mt-1 rounded">
+                    {file.name} ({fileSize} KB)
+                  </div>
+                  <div className="mt-1 text-xs text-red-400">
+                    The file will be attached but text extraction had issues
+                  </div>
+                </div>
+              ),
+              autoClose: 5000,
+              type: 'error',
+            });
+          }
+        });
+      }
     };
 
     // Function to process text files and show preview
