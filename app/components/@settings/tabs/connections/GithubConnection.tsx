@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { logStore } from '~/lib/stores/logs';
 import { classNames } from '~/utils/classNames';
+import Cookies from 'js-cookie';
 
 interface GitHubUserResponse {
   login: string;
@@ -87,30 +88,27 @@ export function GithubConnection() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch user data');
+        throw new Error('Invalid token or unauthorized');
       }
 
-      const userData = (await response.json()) as GitHubUserResponse;
-
-      setConnection({
-        user: userData,
+      const data = (await response.json()) as GitHubUserResponse;
+      const newConnection: GitHubConnection = {
+        user: data,
         token,
-        tokenType: import.meta.env.VITE_GITHUB_TOKEN_TYPE || 'classic',
-      });
+        tokenType: connection.tokenType,
+      };
 
-      localStorage.setItem(
-        'github_connection',
-        JSON.stringify({
-          user: userData,
-          token,
-          tokenType: import.meta.env.VITE_GITHUB_TOKEN_TYPE || 'classic',
-        }),
-      );
+      localStorage.setItem('github_connection', JSON.stringify(newConnection));
+      Cookies.set('githubToken', token);
+      Cookies.set('githubUsername', data.login);
+      Cookies.set('git:github.com', JSON.stringify({ username: token, password: 'x-oauth-basic' }));
 
-      fetchGitHubStats(token);
+      setConnection(newConnection);
+
+      await fetchGitHubStats(token);
+
       toast.success('Successfully connected to GitHub');
     } catch (error) {
-      console.error('Auth error:', error);
       logStore.logError('Failed to authenticate with GitHub', { error });
       toast.error('Failed to connect to GitHub');
       setConnection({ user: null, token: '', tokenType: 'classic' });
@@ -224,6 +222,20 @@ export function GithubConnection() {
 
     setIsLoading(false);
   }, []);
+  useEffect(() => {
+    if (!connection) {
+      return;
+    }
+
+    const token = connection.token;
+    const data = connection.user;
+    Cookies.set('githubToken', token);
+    Cookies.set('git:github.com', JSON.stringify({ username: token, password: 'x-oauth-basic' }));
+
+    if (data) {
+      Cookies.set('githubUsername', data.login);
+    }
+  }, [connection]);
 
   if (isLoading || isConnecting || isFetchingStats) {
     return <LoadingSpinner />;
