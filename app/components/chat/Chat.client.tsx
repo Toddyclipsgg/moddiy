@@ -441,6 +441,15 @@ export const ChatImpl = memo(
                 },
               ]);
               reload();
+              setInput('');
+              Cookies.remove(PROMPT_COOKIE_KEY);
+
+              setUploadedFiles([]);
+              setImageDataList([]);
+
+              resetEnhancer();
+
+              textareaRef.current?.blur();
               setFakeLoading(false);
 
               return;
@@ -480,6 +489,15 @@ export const ChatImpl = memo(
         ]);
         reload();
         setFakeLoading(false);
+        setInput('');
+        Cookies.remove(PROMPT_COOKIE_KEY);
+
+        setUploadedFiles([]);
+        setImageDataList([]);
+
+        resetEnhancer();
+
+        textareaRef.current?.blur();
 
         return;
       }
