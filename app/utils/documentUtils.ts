@@ -2,7 +2,10 @@ import JSZip from 'jszip';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 
-// Import the worker as a virtual URL from Vite
+/*
+ * Import the worker as a virtual URL from Vite
+ * @vite-ignore
+ */
 const pdfjsWorkerUrl = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).href;
 
 /*
