@@ -92,6 +92,9 @@ export default defineConfig((config) => {
     },
     build: {
       target: 'esnext',
+      rollupOptions: {
+        external: ['pdfjs-dist'],
+      }
     },
     plugins: [
       nodePolyfills({
