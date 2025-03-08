@@ -42,7 +42,8 @@ const FilePreview: React.FC<FilePreviewProps> = ({ files, imageDataList, onRemov
 
             // Render the first page as thumbnail
             const page = await pdf.getPage(1);
-            const viewport = page.getViewport({ scale: 0.5 });
+            // Reduced scale for smaller thumbnail
+            const viewport = page.getViewport({ scale: 0.3 });
 
             // Create canvas for the thumbnail
             const canvas = document.createElement('canvas');
@@ -121,49 +122,78 @@ const FilePreview: React.FC<FilePreviewProps> = ({ files, imageDataList, onRemov
     return pdfThumbnails[key];
   };
 
+  // Function to format file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) {
+      return bytes + ' B';
+    }
+
+    if (bytes < 1024 * 1024) {
+      return (bytes / 1024).toFixed(1) + ' KB';
+    }
+
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
   return (
-    <div className="flex flex-wrap overflow-x-auto -mt-2 gap-2">
+    <div className="flex flex-wrap overflow-x-auto -mt-1 gap-1.5 ml-1 mb-1">
       {files.map((file, index) => (
         <div key={file.name + file.size} className="relative">
-          <div className="relative pt-4 pr-4">
+          <div className="relative pt-2 pr-2">
             {imageDataList[index] === 'loading-image' ? (
               // Renders loading indicator for images in process
-              <div className="flex flex-col items-center justify-center bg-bolt-elements-background-depth-3 rounded-md p-2 min-w-[100px] h-[80px]">
-                <div className="i-svg-spinners:90-ring-with-bg text-bolt-elements-loader-progress text-xl animate-spin"></div>
-                <div className="text-xs text-bolt-elements-textSecondary mt-1">Loading...</div>
+              <div className="flex flex-col items-center justify-center bg-bolt-elements-background-depth-3 rounded-md p-1.5 min-w-[35px] h-[28px] border border-gray-700 shadow-sm">
+                <div className="i-svg-spinners:90-ring-with-bg text-bolt-elements-loader-progress text-sm animate-spin"></div>
+                <div className="text-[8px] text-bolt-elements-textSecondary mt-0.5">Loading...</div>
               </div>
             ) : imageDataList[index] && imageDataList[index] !== 'non-image' ? (
               // Renders image for already loaded image types
-              <img src={imageDataList[index]} alt={file.name} className="max-h-20" />
+              <div className="flex flex-col items-center bg-bolt-elements-background-depth-3 rounded-md p-1.5 border border-gray-700 shadow-sm">
+                <div className="relative overflow-hidden" style={{ maxWidth: '70px', maxHeight: '45px' }}>
+                  <img
+                    src={imageDataList[index]}
+                    alt={file.name}
+                    className="object-contain max-h-[45px] max-w-[70px]"
+                  />
+                </div>
+                <div className="text-[8px] text-bolt-elements-textSecondary mt-0.5 max-w-[70px] truncate">
+                  {file.name}
+                </div>
+                <div className="text-[8px] text-bolt-elements-textTertiary">{formatFileSize(file.size)}</div>
+              </div>
             ) : isPdf(file) && getPdfThumbnail(file) ? (
               // Renders PDF thumbnail
-              <div className="flex flex-col items-center justify-center bg-bolt-elements-background-depth-3 rounded-md p-2 min-w-[100px]">
+              <div className="flex flex-col items-center justify-center bg-bolt-elements-background-depth-3 rounded-md p-1.5 min-w-[35px] border border-gray-700 shadow-sm">
                 <div className="relative">
                   <img
                     src={getPdfThumbnail(file)?.dataUrl}
                     alt={`${file.name} (page 1)`}
-                    className="max-h-20 border border-gray-700 rounded"
+                    className="max-h-[45px] max-w-[70px] border border-gray-800 rounded object-contain"
                   />
-                  <div className="absolute bottom-0 right-0 bg-black bg-opacity-70 text-white text-xs px-1 rounded-tl">
+                  <div className="absolute bottom-0 right-0 bg-black bg-opacity-70 text-white text-[7px] px-0.5 rounded-tl">
                     {getPdfThumbnail(file)?.pageCount || '?'} pgs
                   </div>
                 </div>
-                <div className="text-xs text-bolt-elements-textSecondary mt-1 max-w-[100px] truncate">{file.name}</div>
-                <div className="text-xs text-bolt-elements-textTertiary">{(file.size / 1024).toFixed(0)} KB</div>
+                <div className="text-[8px] text-bolt-elements-textSecondary mt-0.5 max-w-[70px] truncate">
+                  {file.name}
+                </div>
+                <div className="text-[8px] text-bolt-elements-textTertiary">{formatFileSize(file.size)}</div>
               </div>
             ) : (
               // Renders icon for other file types
-              <div className="flex flex-col items-center justify-center bg-bolt-elements-background-depth-3 rounded-md p-2 min-w-[100px] h-[80px]">
-                <div className={`${getFileIcon(file.type)} w-6 h-6 text-bolt-elements-textSecondary`} />
-                <div className="text-xs text-bolt-elements-textSecondary mt-1 max-w-[100px] truncate">{file.name}</div>
-                <div className="text-xs text-bolt-elements-textTertiary">{(file.size / 1024).toFixed(0)} KB</div>
+              <div className="flex flex-col items-center justify-center bg-bolt-elements-background-depth-3 rounded-md p-1.5 min-w-[35px] h-[70px] border border-gray-700 shadow-sm">
+                <div className={`${getFileIcon(file.type)} w-5 h-5 text-bolt-elements-textSecondary`} />
+                <div className="text-[8px] text-bolt-elements-textSecondary mt-0.5 max-w-[70px] truncate">
+                  {file.name}
+                </div>
+                <div className="text-[8px] text-bolt-elements-textTertiary">{formatFileSize(file.size)}</div>
               </div>
             )}
             <button
               onClick={() => onRemove(index)}
-              className="absolute top-1 right-1 z-10 bg-black rounded-full w-5 h-5 shadow-md hover:bg-gray-900 transition-colors flex items-center justify-center"
+              className="absolute top-0.5 right-0.5 z-10 bg-black rounded-full w-4 h-4 shadow-md hover:bg-gray-900 transition-colors flex items-center justify-center"
             >
-              <div className="i-ph:x w-3 h-3 text-gray-200" />
+              <div className="i-ph:x w-2 h-2 text-gray-200" />
             </button>
           </div>
         </div>
